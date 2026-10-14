@@ -1,0 +1,40 @@
+[
+  {
+    "id": "scnu-rhythm-games",
+    "name": "华师音游吹水群",
+    "keywords": [
+      "舞萌DX / maimai DX",
+      "中二节奏 / CHUNITHM",
+      "Arcaea",
+      "Phigros",
+      "osu!",
+      "SDVX",
+      "太鼓达人 / TAIKO",
+      "音击 / ONGEKI"
+    ],
+    "qq": "779237255",
+    "createdAt": "2026-10-14T00:00:00.000Z",
+    "updatedAt": "2026-10-14T15:22:58.009Z"
+  },
+  {
+    "id": "scnu-riichi-mahjong",
+    "name": "华师日麻群",
+    "keywords": [
+      "日麻",
+      "雀魂"
+    ],
+    "qq": "595234471",
+    "createdAt": "2026-10-14T00:00:00.000Z",
+    "updatedAt": "2026-10-14T00:00:00.000Z"
+  },
+  {
+    "id": "scnu-roco-kingdom",
+    "name": "华师洛克王国群",
+    "keywords": [
+      "洛克王国"
+    ],
+    "qq": "579923135",
+    "createdAt": "2026-10-14T00:00:00.000Z",
+    "updatedAt": "2026-10-14T00:00:00.000Z"
+  }
+]

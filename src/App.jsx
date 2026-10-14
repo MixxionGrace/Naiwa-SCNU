@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import AdminPage from './AdminPage.jsx'
-import { getPublicGroups } from './api.js'
+import { getPageView, getPublicGroups, trackPageView } from './api.js'
 import announcementPoster from './assets/scnu-sweet-girlfriend-poster.jpg'
 import sponsorWechat from './assets/sponsor-wechat.jpg'
 import sponsorAlipay from './assets/sponsor-alipay.jpg'
@@ -626,6 +626,8 @@ function getInitialRoute() {
 export default function App() {
   const [route, setRoute] = useState(getInitialRoute)
   const [copiedGroupId, setCopiedGroupId] = useState('')
+  const [pvCount, setPvCount] = useState(null)
+  const pvTrackedRef = useRef(false)
   const [activeModal, setActiveModal] = useState(() =>
     getInitialRoute().page === ADMIN_PAGE ? '' : 'announcement',
   )
@@ -645,6 +647,23 @@ export default function App() {
       route.page === ADMIN_PAGE
         ? '同好群管理 · 华南奶蛙师范大学'
         : '华南奶蛙师范大学'
+  }, [route.page])
+
+  useEffect(() => {
+    if (route.page === ADMIN_PAGE || pvTrackedRef.current) return
+
+    pvTrackedRef.current = true
+    trackPageView()
+      .then((result) => {
+        if (Number.isSafeInteger(result.pv)) setPvCount(result.pv)
+      })
+      .catch(() => {
+        getPageView()
+          .then((result) => {
+            if (Number.isSafeInteger(result.pv)) setPvCount(result.pv)
+          })
+          .catch(() => undefined)
+      })
   }, [route.page])
 
   useEffect(() => {
@@ -795,6 +814,13 @@ export default function App() {
           <span>33</span>
         </div>
       </main>
+
+      {route.page === 'home' && Number.isSafeInteger(pvCount) && (
+        <p className="pv-counter" aria-live="polite">
+          自2026年10月15日起，你师奶蛙被访问了{' '}
+          <strong>{pvCount.toLocaleString('zh-CN')}</strong> 刺。
+        </p>
+      )}
 
       <footer className={isAdminPage ? 'site-footer--admin' : ''}>
         <p>华师音游同好 · 趣味制作</p>

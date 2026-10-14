@@ -48,6 +48,14 @@ export function getPublicGroups(options = {}) {
   })
 }
 
+export function getPageView(options = {}) {
+  return apiRequest('/api/metrics/pv', { signal: options.signal })
+}
+
+export function trackPageView() {
+  return apiRequest('/api/metrics/pv', { method: 'POST' })
+}
+
 export function loginAdmin(credentials) {
   return apiRequest('/api/auth/login', { method: 'POST', body: credentials })
 }

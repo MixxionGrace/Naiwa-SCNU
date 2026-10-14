@@ -72,6 +72,20 @@ async function run() {
   const unauthenticated = await request('/api/admin/groups')
   assert.equal(unauthenticated.status, 401)
 
+  const pvBefore = await request('/api/metrics/pv')
+  assert.equal(pvBefore.status, 200)
+  assert.equal(pvBefore.body.startDate, '2026-10-15')
+  assert.ok(Number.isSafeInteger(pvBefore.body.pv))
+
+  const pvIncrement = await request('/api/metrics/pv', { method: 'POST' })
+  assert.equal(pvIncrement.status, 200)
+  assert.equal(pvIncrement.body.startDate, '2026-10-15')
+  assert.equal(pvIncrement.body.pv, pvBefore.body.pv + 1)
+
+  const pvAfter = await request('/api/metrics/pv')
+  assert.equal(pvAfter.status, 200)
+  assert.equal(pvAfter.body.pv, pvIncrement.body.pv)
+
   const login = await request('/api/auth/login', {
     method: 'POST',
     body: { username: 'MixxionGrace', password },
@@ -128,7 +142,7 @@ async function run() {
   const expired = await request('/api/admin/groups', { token })
   assert.equal(expired.status, 401)
 
-  console.log('API smoke test passed: auth, protected CRUD, three-field search, logout.')
+  console.log('API smoke test passed: PV, auth, protected CRUD, three-field search, logout.')
 }
 
 run().catch((error) => {

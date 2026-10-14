@@ -3,6 +3,7 @@ import Router from '@koa/router'
 import bodyParser from 'koa-bodyparser'
 import { fileURLToPath } from 'node:url'
 import { getBearerToken, login, logout, requireAdmin } from './auth.js'
+import { MetricsStore } from './metrics-store.js'
 import { GroupStore } from './store.js'
 
 function parseKeywords(value) {
@@ -45,7 +46,7 @@ function validateGroupPayload(body) {
   return { name, keywords, qq }
 }
 
-export function createApp({ store = new GroupStore() } = {}) {
+export function createApp({ store = new GroupStore(), metricsStore = new MetricsStore() } = {}) {
   const app = new Koa()
   const router = new Router()
   app.proxy = true
@@ -91,6 +92,16 @@ export function createApp({ store = new GroupStore() } = {}) {
       page: ctx.query.page,
       pageSize: ctx.query.pageSize,
     })
+  })
+
+  router.get('/api/metrics/pv', async (ctx) => {
+    ctx.set('Cache-Control', 'no-store')
+    ctx.body = await metricsStore.getPv()
+  })
+
+  router.post('/api/metrics/pv', async (ctx) => {
+    ctx.set('Cache-Control', 'no-store')
+    ctx.body = await metricsStore.incrementPv()
   })
 
   router.post('/api/auth/login', (ctx) => {

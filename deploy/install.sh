@@ -150,7 +150,10 @@ sudo mv "$WEB_ROOT/index.html.next" "$WEB_ROOT/index.html"
 
 curl --max-time 10 --noproxy '*' -kfsS --resolve milk-frog.cn:443:127.0.0.1 \
   https://milk-frog.cn/api/groups?page=1\&pageSize=20 >/dev/null
+curl --max-time 10 --noproxy '*' -kfsS --resolve milk-frog.cn:443:127.0.0.1 \
+  https://milk-frog.cn/api/metrics/pv | grep -q '"startDate":"2026-10-15"'
 
 echo "DEPLOY_OK"
 echo "Web root: $WEB_ROOT"
 echo "API data: $DATA_DIR/groups.json"
+echo "PV data: $DATA_DIR/metrics.json"

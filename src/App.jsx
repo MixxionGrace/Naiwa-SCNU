@@ -820,7 +820,7 @@ export default function App() {
       {route.page === 'home' && Number.isSafeInteger(pvCount) && (
         <p className="pv-counter" aria-live="polite">
           自2026年10月15日起，你师奶蛙被访问了{' '}
-          <strong>{pvCount.toLocaleString('zh-CN')}</strong> 刺。
+          <strong>{pvCount.toLocaleString('zh-CN')}</strong> 次。
         </p>
       )}
 

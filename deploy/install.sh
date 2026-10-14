@@ -109,21 +109,35 @@ if ! grep -q 'location /api/' "$NGINX_CONFIG"; then
   rm "$TEMP_CONFIG"
 fi
 
-if ! sudo docker exec "$WEB_CONTAINER" nginx -t; then
+if ! sudo docker run --rm \
+  --network "$NETWORK_NAME" \
+  -v "$WEB_ROOT:/usr/share/nginx/html:ro" \
+  -v "$APP_ROOT/letsencrypt:/etc/letsencrypt:ro" \
+  -v "$NGINX_CONFIG:/etc/nginx/conf.d/default.conf:ro" \
+  nginx:stable-alpine nginx -t; then
   if [[ -f "$NGINX_BACKUP" ]]; then
     sudo cp "$NGINX_BACKUP" "$NGINX_CONFIG"
   fi
   echo "Nginx 配置检查失败，已恢复备份。" >&2
   exit 1
 fi
-sudo docker exec "$WEB_CONTAINER" nginx -s reload
+sudo docker restart "$WEB_CONTAINER" >/dev/null
 
-if ! curl --max-time 10 -kfsS --resolve milk-frog.cn:443:127.0.0.1 \
-  https://milk-frog.cn/api/health | grep -q '"ok":true'; then
+PROXY_READY=false
+for attempt in {1..15}; do
+  if curl --max-time 5 --noproxy '*' -kfsS \
+    --resolve milk-frog.cn:443:127.0.0.1 \
+    https://milk-frog.cn/api/health | grep -q '"ok":true'; then
+    PROXY_READY=true
+    break
+  fi
+  sleep 1
+done
+
+if [[ "$PROXY_READY" != true ]]; then
   if [[ -f "$NGINX_BACKUP" ]]; then
     sudo cp "$NGINX_BACKUP" "$NGINX_CONFIG"
-    sudo docker exec "$WEB_CONTAINER" nginx -t
-    sudo docker exec "$WEB_CONTAINER" nginx -s reload
+    sudo docker restart "$WEB_CONTAINER" >/dev/null
   fi
   echo "HTTPS /api 反向代理检查失败。" >&2
   exit 1
@@ -134,7 +148,7 @@ sudo cp -a "$BUNDLE_DIR/dist/assets/." "$WEB_ROOT/assets/"
 sudo cp "$BUNDLE_DIR/dist/index.html" "$WEB_ROOT/index.html.next"
 sudo mv "$WEB_ROOT/index.html.next" "$WEB_ROOT/index.html"
 
-curl --max-time 10 -kfsS --resolve milk-frog.cn:443:127.0.0.1 \
+curl --max-time 10 --noproxy '*' -kfsS --resolve milk-frog.cn:443:127.0.0.1 \
   https://milk-frog.cn/api/groups?page=1\&pageSize=20 >/dev/null
 
 echo "DEPLOY_OK"

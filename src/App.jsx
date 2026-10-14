@@ -277,9 +277,11 @@ function HomePage() {
         }}
       />
 
-      <p className="hero__note" aria-live="polite">
-        {audioMessage || '学校官网将在新标签页打开 · 音频仅在点击后播放'}
-      </p>
+      {audioMessage && (
+        <p className="hero__note" aria-live="polite">
+          {audioMessage}
+        </p>
+      )}
     </section>
   )
 }

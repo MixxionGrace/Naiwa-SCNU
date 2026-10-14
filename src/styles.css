@@ -1477,20 +1477,34 @@ footer p {
   }
 
   .group-preview-card {
-    grid-template-columns: 30px minmax(0, 1fr) auto;
-    gap: 8px 11px;
+    grid-template-columns: 30px minmax(0, 1fr);
+    column-gap: 11px;
+    row-gap: 7px;
     min-height: 104px;
     padding: 15px;
   }
 
   .group-preview-card__index {
     align-self: start;
-    grid-row: 1 / 3;
+    grid-column: 1;
+    grid-row: 1 / 4;
     padding-top: 3px;
   }
 
+  .group-preview-card strong {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
   .group-preview-card__games {
-    grid-column: 2 / 4;
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .group-preview-card__qq {
+    grid-column: 2;
+    grid-row: 3;
+    white-space: nowrap;
   }
 
   .group-directory__footer {

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import AdminPage from './AdminPage.jsx'
 import { getPublicGroups } from './api.js'
 import announcementPoster from './assets/scnu-sweet-girlfriend-poster.jpg'
 import sponsorWechat from './assets/sponsor-wechat.jpg'
 import sponsorAlipay from './assets/sponsor-alipay.jpg'
+import naiwaLaughAudio from './assets/naiwa-laugh.m4a'
 
 const NAV_ITEMS = [
   { id: 'home', label: '首页' },
@@ -63,6 +64,15 @@ function MegaphoneIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="m3 11 13-5v12L3 13v-2Z" />
       <path d="M16 9.5a3 3 0 0 1 0 5M7 14.5 8.5 20h3L10 15.7" />
+    </svg>
+  )
+}
+
+function SoundIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 9v6h4l5 4V5L9 9H5Z" />
+      <path d="M17 9a4 4 0 0 1 0 6M19.5 6.5a8 8 0 0 1 0 11" />
     </svg>
   )
 }
@@ -198,6 +208,25 @@ function PromoteGroupModal({ onClose }) {
 }
 
 function HomePage() {
+  const audioRef = useRef(null)
+  const [isLaughing, setIsLaughing] = useState(false)
+  const [audioMessage, setAudioMessage] = useState('')
+
+  const playNaiwaLaugh = async () => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    setAudioMessage('')
+    audio.currentTime = 0
+
+    try {
+      await audio.play()
+    } catch {
+      setIsLaughing(false)
+      setAudioMessage('浏览器没有成功播放，请再点一次试试。')
+    }
+  }
+
   return (
     <section className="page page--home" aria-labelledby="home-title">
       <div className="hero__eyebrow">
@@ -214,17 +243,43 @@ function HomePage() {
         喜欢我华师奶蛙吗
       </p>
 
-      <a
-        className="primary-link"
-        href="https://scnu.edu.cn"
-        target="_blank"
-        rel="noreferrer"
-      >
-        学校官网
-        <ArrowIcon />
-      </a>
+      <div className="hero__actions">
+        <a
+          className="primary-link"
+          href="https://scnu.edu.cn"
+          target="_blank"
+          rel="noreferrer"
+        >
+          学校官网
+          <ArrowIcon />
+        </a>
 
-      <p className="hero__note">点击将在新标签页打开 scnu.edu.cn</p>
+        <button
+          className={`audio-button${isLaughing ? ' is-playing' : ''}`}
+          type="button"
+          onClick={playNaiwaLaugh}
+        >
+          <SoundIcon />
+          {isLaughing ? '奶蛙正在大笑…' : '点击收听奶蛙大笑'}
+        </button>
+      </div>
+
+      <audio
+        ref={audioRef}
+        src={naiwaLaughAudio}
+        preload="metadata"
+        onPlaying={() => setIsLaughing(true)}
+        onPause={() => setIsLaughing(false)}
+        onEnded={() => setIsLaughing(false)}
+        onError={() => {
+          setIsLaughing(false)
+          setAudioMessage('音频加载失败，请稍后再试。')
+        }}
+      />
+
+      <p className="hero__note" aria-live="polite">
+        {audioMessage || '学校官网将在新标签页打开 · 音频仅在点击后播放'}
+      </p>
     </section>
   )
 }

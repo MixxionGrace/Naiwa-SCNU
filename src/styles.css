@@ -354,18 +354,30 @@ h2 {
   line-height: 1.85;
 }
 
-.primary-link {
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 34px;
+}
+
+.primary-link,
+.audio-button {
   display: inline-flex;
   align-items: center;
-  gap: 42px;
-  margin-top: 34px;
-  padding: 15px 19px 15px 22px;
+  min-height: 54px;
   border-radius: 999px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.primary-link {
+  gap: 42px;
+  padding: 15px 19px 15px 22px;
   background: #ffe86a;
   box-shadow: 0 17px 44px rgba(1, 21, 68, 0.32);
   color: #082d74;
-  font-size: 15px;
-  font-weight: 800;
   text-decoration: none;
   transition: gap 180ms ease, transform 180ms ease, box-shadow 180ms ease;
 }
@@ -376,7 +388,28 @@ h2 {
   box-shadow: 0 22px 54px rgba(1, 21, 68, 0.42);
 }
 
+.audio-button {
+  gap: 10px;
+  padding: 14px 20px;
+  border: 1px solid rgba(255, 232, 106, 0.44);
+  background: rgba(4, 24, 69, 0.58);
+  box-shadow: 0 17px 44px rgba(1, 21, 68, 0.2);
+  color: #fff4a8;
+  cursor: pointer;
+  backdrop-filter: blur(18px);
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.audio-button:hover,
+.audio-button.is-playing {
+  border-color: rgba(255, 232, 106, 0.82);
+  background: rgba(10, 49, 124, 0.78);
+  color: #ffe86a;
+  transform: translateY(-3px);
+}
+
 .primary-link svg,
+.audio-button svg,
 .qq-card button svg,
 .group-search svg,
 .group-card button svg,
@@ -1400,6 +1433,18 @@ footer p {
   .lead {
     font-size: 14px;
     line-height: 1.8;
+  }
+
+  .hero__actions {
+    align-items: stretch;
+    flex-direction: column;
+    width: min(100%, 330px);
+  }
+
+  .hero__actions .primary-link,
+  .hero__actions .audio-button {
+    justify-content: space-between;
+    width: 100%;
   }
 
   .about-grid {

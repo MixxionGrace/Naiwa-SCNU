@@ -1271,6 +1271,49 @@ footer p {
   transform: translateY(-2px);
 }
 
+.new-features-modal {
+  width: min(100%, 860px);
+}
+
+.new-feature-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 22px;
+  margin-top: 23px;
+  padding: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 19px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 232, 106, 0.15), transparent 36%),
+    rgba(255, 255, 255, 0.07);
+}
+
+.new-feature-card > span {
+  align-self: start;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 232, 106, 0.42);
+  border-radius: 999px;
+  color: #ffe86a;
+  font: 800 11px/1 Inter, Arial, sans-serif;
+  letter-spacing: 0.16em;
+}
+
+.new-feature-card h3 {
+  margin: 1px 0 0;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1.35;
+}
+
+.new-feature-card p {
+  margin: 11px 0 0;
+  color: rgba(255, 255, 255, 0.67);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
 .sponsor-modal {
   width: min(100%, 900px);
 }
@@ -1853,6 +1896,11 @@ footer p {
 
   .sponsor-payment-grid {
     grid-template-columns: 1fr;
+  }
+
+  .new-feature-card {
+    grid-template-columns: 1fr;
+    gap: 15px;
   }
 
   .payment-card img {

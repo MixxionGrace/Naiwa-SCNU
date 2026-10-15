@@ -138,7 +138,42 @@ function AnnouncementModal({ onClose }) {
         alt="甜蜜女友 2 与华南师范大学联动新生入学招集海报"
       />
       <div className="announcement-modal__actions">
-        <button type="button" onClick={onClose}>继续浏览</button>
+        <button type="button" onClick={onClose}>下一步</button>
+      </div>
+    </ModalShell>
+  )
+}
+
+function NewFeaturesModal({ onClose }) {
+  return (
+    <ModalShell
+      labelledBy="new-features-modal-title"
+      describedBy="new-features-modal-copy"
+      className="new-features-modal"
+      onClose={onClose}
+    >
+      <div className="modal-heading">
+        <span>WHAT&apos;S NEW</span>
+        <h2 id="new-features-modal-title">新功能上线</h2>
+        <p id="new-features-modal-copy">
+          现在可以直接在小站提交华师同好群，申请、审核和公开展示都有着落啦。
+        </p>
+      </div>
+
+      <article className="new-feature-card">
+        <span>NEW</span>
+        <div>
+          <h3>同好群自助申请上线</h3>
+          <p>
+            点击“想要宣群？”，填写群名、相关游戏、QQ 群号和申请人 QQ 号即可提交。
+            系统会自动检查重复群号，申请通过站长审核后才会展示在“查找华师同好群”中；
+            申请人 QQ 号不会公开。
+          </p>
+        </div>
+      </article>
+
+      <div className="modal-actions">
+        <button type="button" onClick={onClose}>下一步</button>
       </div>
     </ModalShell>
   )
@@ -834,6 +869,12 @@ function getInitialRoute() {
   }
 }
 
+function getNextStartupModal(current) {
+  if (current === 'announcement') return 'new-features'
+  if (current === 'new-features') return 'sponsor'
+  return ''
+}
+
 export default function App() {
   const [route, setRoute] = useState(getInitialRoute)
   const [copiedGroupId, setCopiedGroupId] = useState('')
@@ -883,9 +924,7 @@ export default function App() {
     const previousOverflow = document.body.style.overflow
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        setActiveModal((current) =>
-          current === 'announcement' ? 'sponsor' : '',
-        )
+        setActiveModal(getNextStartupModal)
       }
     }
 
@@ -921,9 +960,7 @@ export default function App() {
   }
 
   const closeActiveModal = () => {
-    setActiveModal((current) =>
-      current === 'announcement' ? 'sponsor' : '',
-    )
+    setActiveModal(getNextStartupModal)
   }
 
   const activeNavPage = route.page === RESULT_PAGE ? 'find' : route.page
@@ -1043,6 +1080,9 @@ export default function App() {
 
       {activeModal === 'announcement' && (
         <AnnouncementModal onClose={closeActiveModal} />
+      )}
+      {activeModal === 'new-features' && (
+        <NewFeaturesModal onClose={closeActiveModal} />
       )}
       {activeModal === 'sponsor' && (
         <SponsorModal onClose={closeActiveModal} />

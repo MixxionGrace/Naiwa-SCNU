@@ -352,7 +352,7 @@ function SponsorModal({ onClose }) {
             <li>*汗</li>
             <li>C*R</li>
           </ul>
-          <p>祝你们身体健康，万事如意，绩点拉满，好运不断 🙇</p>
+          <p>祝老板们身体健康，万事如意，绩点拉满，逢考不难 🙇</p>
         </div>
       </div>
 

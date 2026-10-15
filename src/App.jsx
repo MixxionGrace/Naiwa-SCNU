@@ -3,8 +3,10 @@ import AdminPage from './AdminPage.jsx'
 import {
   ApiError,
   checkGroupApplicationQq,
+  createActivityApplication,
   createGroupApplication,
   getPageView,
+  getPublicActivities,
   getPublicGroups,
   trackPageView,
 } from './api.js'
@@ -12,17 +14,44 @@ import announcementPoster from './assets/scnu-sweet-girlfriend-poster.jpg'
 import sponsorWechat from './assets/sponsor-wechat.jpg'
 import sponsorAlipay from './assets/sponsor-alipay.jpg'
 import naiwaLaughAudio from './assets/naiwa-laugh.m4a'
+import { RELEASE_LOGS } from './releaseLogs.js'
 
 const NAV_ITEMS = [
   { id: 'home', label: '首页' },
   { id: 'about', label: '关于我们' },
   { id: 'join', label: '加入华师音游吹水群' },
   { id: 'find', label: '查找华师同好群' },
+  { id: 'events', label: '同好活动广场' },
 ]
 
 const RESULT_PAGE = 'group-results'
 const ADMIN_PAGE = 'admin'
 const GROUPS_PER_PAGE = 20
+const ACTIVITIES_PER_PAGE = 12
+const RELEASE_LOGS_PER_PAGE = 10
+
+const activityDateFormatter = new Intl.DateTimeFormat('zh-CN', {
+  timeZone: 'Asia/Shanghai',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  weekday: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+})
+
+function formatActivityTime(value) {
+  const date = new Date(value)
+  return Number.isFinite(date.getTime()) ? activityDateFormatter.format(date) : value
+}
+
+function toActivityIsoTime(value) {
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return ''
+  date.setSeconds(0, 0)
+  return date.toISOString()
+}
 
 function ArrowIcon() {
   return (
@@ -80,6 +109,34 @@ function SoundIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M5 9v6h4l5 4V5L9 9H5Z" />
       <path d="M17 9a4 4 0 0 1 0 6M19.5 6.5a8 8 0 0 1 0 11" />
+    </svg>
+  )
+}
+
+function HistoryIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <path d="M3 3v5h5M12 7v5l3 2" />
+    </svg>
+  )
+}
+
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3.5" y="5.5" width="17" height="15" rx="2.5" />
+      <path d="M8 3v5M16 3v5M3.5 10h17M8 14h3M13 14h3M8 17h3" />
+    </svg>
+  )
+}
+
+function PictureIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="3" />
+      <circle cx="8.5" cy="9" r="1.5" />
+      <path d="m5.5 18 4.7-4.8 3.1 3 2.4-2.4 2.8 2.8" />
     </svg>
   )
 }
@@ -144,7 +201,7 @@ function AnnouncementModal({ onClose }) {
   )
 }
 
-function NewFeaturesModal({ onClose }) {
+function NewFeaturesModal({ onClose, onOpenReleaseLog }) {
   return (
     <ModalShell
       labelledBy="new-features-modal-title"
@@ -156,24 +213,114 @@ function NewFeaturesModal({ onClose }) {
         <span>WHAT&apos;S NEW</span>
         <h2 id="new-features-modal-title">新功能上线</h2>
         <p id="new-features-modal-copy">
-          现在可以直接在小站提交华师同好群，申请、审核和公开展示都有着落啦。
+          最近两项重要功能都整理在这里，找群和约活动现在都有着落啦。
         </p>
       </div>
 
-      <article className="new-feature-card">
-        <span>NEW</span>
-        <div>
-          <h3>同好群自助申请上线</h3>
-          <p>
-            点击“想要宣群？”，填写群名、相关游戏、QQ 群号和申请人 QQ 号即可提交。
-            系统会自动检查重复群号，申请通过站长审核后才会展示在“查找华师同好群”中；
-            申请人 QQ 号不会公开。
-          </p>
-        </div>
-      </article>
+      <div className="new-feature-list">
+        <article className="new-feature-card">
+          <span>NEW</span>
+          <div>
+            <h3>华师同好活动广场上线</h3>
+            <p>
+              可以浏览线上、线下同好活动，也能填写活动标题、内容、多个活动时间和群聊信息提交申请。
+              通过站长审核后，活动才会在广场公开展示；申请人 QQ 号不会公开。
+            </p>
+          </div>
+        </article>
 
-      <div className="modal-actions">
+        <article className="new-feature-card new-feature-card--previous">
+          <span>01</span>
+          <div>
+            <h3>同好群自助申请上线</h3>
+            <p>
+              点击“想要宣群？”，填写群名、相关游戏、QQ 群号和申请人 QQ 号即可提交。
+              系统会自动检查重复群号，申请通过审核后才会展示在同好群列表中。
+            </p>
+          </div>
+        </article>
+      </div>
+
+      <div className="modal-actions new-features-modal__actions">
         <button type="button" onClick={onClose}>下一步</button>
+        <button
+          className="release-log-link"
+          type="button"
+          onClick={onOpenReleaseLog}
+        >
+          <HistoryIcon />
+          最近更新
+        </button>
+      </div>
+    </ModalShell>
+  )
+}
+
+function ReleaseLogModal({ onClose }) {
+  const [page, setPage] = useState(1)
+  const pageCount = Math.max(
+    1,
+    Math.ceil(RELEASE_LOGS.length / RELEASE_LOGS_PER_PAGE),
+  )
+  const currentPage = Math.min(page, pageCount)
+  const start = (currentPage - 1) * RELEASE_LOGS_PER_PAGE
+  const entries = RELEASE_LOGS.slice(start, start + RELEASE_LOGS_PER_PAGE)
+
+  return (
+    <ModalShell
+      labelledBy="release-log-modal-title"
+      describedBy="release-log-modal-copy"
+      className="release-log-modal"
+      onClose={onClose}
+    >
+      <div className="modal-heading">
+        <span>RELEASE LOG</span>
+        <h2 id="release-log-modal-title">最近更新</h2>
+        <p id="release-log-modal-copy">
+          华南奶蛙师范大学小站的功能与修复记录，最新内容排在最前面。
+        </p>
+      </div>
+
+      <ol className="release-timeline" start={start + 1}>
+        {entries.map((entry, index) => (
+          <li key={`${entry.date}-${entry.title}`}>
+            <div className="release-timeline__marker" aria-hidden="true">
+              <span />
+            </div>
+            <article>
+              <div className="release-timeline__meta">
+                <time dateTime={entry.date}>{entry.date}</time>
+                <span className={`release-type release-type--${entry.type.toLowerCase()}`}>
+                  {entry.type}
+                </span>
+                <small>#{String(start + index + 1).padStart(2, '0')}</small>
+              </div>
+              <h3>{entry.title}</h3>
+              <p>{entry.description}</p>
+            </article>
+          </li>
+        ))}
+      </ol>
+
+      <div className="release-log-footer">
+        <p>共 {RELEASE_LOGS.length} 条更新 · 每页 {RELEASE_LOGS_PER_PAGE} 条</p>
+        <div className="release-pagination" aria-label="更新日志分页">
+          <button
+            type="button"
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            disabled={currentPage === 1}
+          >
+            上一页
+          </button>
+          <span>{currentPage} / {pageCount}</span>
+          <button
+            type="button"
+            onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+            disabled={currentPage === pageCount}
+          >
+            下一页
+          </button>
+        </div>
       </div>
     </ModalShell>
   )
@@ -439,6 +586,365 @@ function PromoteGroupModal({ onClose }) {
       <p className="promote-notice">
         注意：只有华师相关的同好群或社团群可在网站里宣传。
       </p>
+    </ModalShell>
+  )
+}
+
+function HostContactModal({ onClose }) {
+  const [copied, setCopied] = useState(false)
+
+  const copyQid = async () => {
+    try {
+      await navigator.clipboard.writeText('NoahDayo')
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      window.prompt('复制站长 QQID：', 'NoahDayo')
+    }
+  }
+
+  return (
+    <ModalShell
+      labelledBy="host-contact-title"
+      describedBy="host-contact-copy"
+      className="promote-modal host-contact-modal"
+      onClose={onClose}
+    >
+      <div className="modal-heading">
+        <span>CONTACT THE HOST</span>
+        <h2 id="host-contact-title">联系站长</h2>
+        <p id="host-contact-copy">
+          添加站长 QID 好友，并说明对应活动以及需要展示的图片，由站长在管理端插入。
+        </p>
+      </div>
+
+      <div className="promote-contact host-contact-card">
+        <span>站长 QQID</span>
+        <strong>NoahDayo</strong>
+        <button type="button" onClick={copyQid}>
+          <CopyIcon />
+          {copied ? '已复制' : '复制 QID'}
+        </button>
+      </div>
+
+      <div className="modal-actions">
+        <button type="button" onClick={onClose}>返回活动投稿</button>
+      </div>
+    </ModalShell>
+  )
+}
+
+function validateActivityFields(form) {
+  const errors = {}
+  const normalizedTimes = form.times.map(toActivityIsoTime).filter(Boolean)
+
+  if (!form.title.trim() || form.title.trim().length > 100) {
+    errors.title = '活动标题需为 1–100 个字符。'
+  }
+  if (!form.content.trim() || form.content.trim().length > 2000) {
+    errors.content = '活动内容需为 1–2000 个字符。'
+  }
+  if (!form.groupName.trim() || form.groupName.trim().length > 80) {
+    errors.groupName = '群名需为 1–80 个字符。'
+  }
+  if (!/^\d{5,12}$/.test(form.groupQq.replace(/\s+/g, ''))) {
+    errors.groupQq = 'QQ 群号应为 5–12 位数字。'
+  }
+  if (!/^\d{5,12}$/.test(form.applicantQq.replace(/\s+/g, ''))) {
+    errors.applicantQq = '申请人 QQ 号应为 5–12 位数字。'
+  }
+  if (
+    !form.times.length ||
+    form.times.length > 20 ||
+    normalizedTimes.length !== form.times.length ||
+    new Set(normalizedTimes).size !== normalizedTimes.length
+  ) {
+    errors.times = '请选择 1–20 个有效且不重复的活动时间。'
+  }
+  if (!form.modes.length) errors.modes = '请至少选择线上或线下其中一种。'
+
+  return errors
+}
+
+function ActivitySubmissionModal({ onClose }) {
+  const timeInputRefs = useRef([])
+  const [form, setForm] = useState({
+    title: '',
+    content: '',
+    groupName: '',
+    groupQq: '',
+    applicantQq: '',
+    times: [''],
+    modes: [],
+  })
+  const [fieldErrors, setFieldErrors] = useState({})
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [showContactHost, setShowContactHost] = useState(false)
+
+  const updateField = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }))
+    setFieldErrors((current) => ({ ...current, [field]: '' }))
+    setError('')
+  }
+
+  const updateTime = (index, value) => {
+    updateField(
+      'times',
+      form.times.map((time, timeIndex) => (timeIndex === index ? value : time)),
+    )
+  }
+
+  const removeTime = (index) => {
+    if (form.times.length === 1) return
+    updateField('times', form.times.filter((_, timeIndex) => timeIndex !== index))
+  }
+
+  const openTimePicker = (index) => {
+    const input = timeInputRefs.current[index]
+    if (!input) return
+
+    input.focus({ preventScroll: true })
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker()
+        return
+      } catch {
+        // Some mobile browsers expose showPicker without allowing programmatic opening.
+      }
+    }
+    input.click()
+  }
+
+  const toggleMode = (mode) => {
+    updateField(
+      'modes',
+      form.modes.includes(mode)
+        ? form.modes.filter((item) => item !== mode)
+        : [...form.modes, mode],
+    )
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    const errors = validateActivityFields(form)
+    setFieldErrors(errors)
+    setError('')
+    if (Object.keys(errors).length) return
+
+    setSubmitting(true)
+    try {
+      await createActivityApplication({
+        ...form,
+        times: form.times.map(toActivityIsoTime),
+      })
+      setSubmitted(true)
+    } catch (requestError) {
+      setError(requestError.message)
+      if (requestError instanceof ApiError) setFieldErrors(requestError.fields)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (showContactHost) {
+    return <HostContactModal onClose={() => setShowContactHost(false)} />
+  }
+
+  if (submitted) {
+    return (
+      <ModalShell
+        labelledBy="activity-submitted-title"
+        describedBy="activity-submitted-copy"
+        className="promote-modal activity-submit-modal activity-result-modal"
+        onClose={onClose}
+      >
+        <div className="promote-result promote-result--submitted">
+          <span>ACTIVITY SUBMITTED</span>
+          <h2 id="activity-submitted-title">活动已提交</h2>
+          <p id="activity-submitted-copy">
+            站长审核通过后，活动会自动出现在华师同好活动广场中。
+          </p>
+        </div>
+        <div className="modal-actions promote-result__actions">
+          <button type="button" onClick={onClose}>知道了</button>
+        </div>
+      </ModalShell>
+    )
+  }
+
+  return (
+    <ModalShell
+      labelledBy="activity-submit-title"
+      describedBy="activity-submit-copy"
+      className="promote-modal activity-submit-modal"
+      onClose={onClose}
+    >
+      <div className="modal-heading">
+        <span>SUBMIT AN ACTIVITY</span>
+        <h2 id="activity-submit-title">提交同好活动</h2>
+        <p id="activity-submit-copy">
+          填写活动与群聊信息。通过审核后，活动会公开展示在广场中。
+        </p>
+      </div>
+
+      <form className="promote-form activity-submit-form" onSubmit={handleSubmit} noValidate>
+        <div className="promote-form__grid">
+          <label className="promote-form__wide">
+            <span>活动标题</span>
+            <input
+              value={form.title}
+              onChange={(event) => updateField('title', event.target.value)}
+              placeholder="例如：周五大学城舞萌拼机"
+              maxLength="100"
+              required
+            />
+            {fieldErrors.title && <small>{fieldErrors.title}</small>}
+          </label>
+
+          <label>
+            <span>群名</span>
+            <input
+              value={form.groupName}
+              onChange={(event) => updateField('groupName', event.target.value)}
+              placeholder="活动所属同好群"
+              maxLength="80"
+              required
+            />
+            {fieldErrors.groupName && <small>{fieldErrors.groupName}</small>}
+          </label>
+
+          <label>
+            <span>QQ 群号</span>
+            <input
+              value={form.groupQq}
+              onChange={(event) => updateField('groupQq', event.target.value)}
+              inputMode="numeric"
+              placeholder="5–12 位数字"
+              maxLength="12"
+              required
+            />
+            {fieldErrors.groupQq && <small>{fieldErrors.groupQq}</small>}
+          </label>
+
+          <label className="promote-form__wide">
+            <span>活动内容</span>
+            <textarea
+              value={form.content}
+              onChange={(event) => updateField('content', event.target.value)}
+              placeholder="介绍活动内容、集合地点、参与要求等"
+              rows="5"
+              maxLength="2000"
+              required
+            />
+            <em>{form.content.length} / 2000</em>
+            {fieldErrors.content && <small>{fieldErrors.content}</small>}
+          </label>
+
+          <fieldset className="promote-form__wide activity-mode-fieldset">
+            <legend>活动形式（可多选）</legend>
+            <div className="activity-mode-options">
+              {[
+                ['online', '线上'],
+                ['offline', '线下'],
+              ].map(([value, label]) => (
+                <label key={value}>
+                  <input
+                    type="checkbox"
+                    checked={form.modes.includes(value)}
+                    onChange={() => toggleMode(value)}
+                  />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+            {fieldErrors.modes && <small>{fieldErrors.modes}</small>}
+          </fieldset>
+
+          <fieldset className="promote-form__wide activity-time-fieldset">
+            <legend>活动时间（可多选，精确到分钟）</legend>
+            <div className="activity-time-heading">
+              <span>已添加 {form.times.length} 个时间</span>
+              <button
+                type="button"
+                onClick={() => updateField('times', [...form.times, ''])}
+                disabled={form.times.length >= 20}
+              >
+                + 添加时间
+              </button>
+            </div>
+            <div className="activity-time-list">
+              {form.times.map((time, index) => (
+                <div className="activity-time-row" key={`activity-time-${index}`}>
+                  <div className="activity-time-picker">
+                    <input
+                      ref={(element) => { timeInputRefs.current[index] = element }}
+                      type="datetime-local"
+                      step="60"
+                      value={time}
+                      onChange={(event) => updateTime(index, event.target.value)}
+                      aria-label={`活动时间 ${index + 1}`}
+                      required
+                    />
+                    <button
+                      className="activity-time-picker__trigger"
+                      type="button"
+                      onClick={() => openTimePicker(index)}
+                      aria-label={`打开活动时间 ${index + 1} 的日期和时间选择器`}
+                    >
+                      <CalendarIcon />
+                      <span>选择时间</span>
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeTime(index)}
+                    disabled={form.times.length === 1}
+                    aria-label={`删除活动时间 ${index + 1}`}
+                  >
+                    删除
+                  </button>
+                </div>
+              ))}
+            </div>
+            {fieldErrors.times && <small>{fieldErrors.times}</small>}
+          </fieldset>
+
+          <label className="promote-form__wide">
+            <span>申请人 QQ 号</span>
+            <input
+              value={form.applicantQq}
+              onChange={(event) => updateField('applicantQq', event.target.value)}
+              inputMode="numeric"
+              placeholder="用于审核联系，不会公开"
+              maxLength="12"
+              required
+            />
+            {fieldErrors.applicantQq && <small>{fieldErrors.applicantQq}</small>}
+          </label>
+        </div>
+
+        <button
+          className="activity-image-contact"
+          type="button"
+          onClick={() => setShowContactHost(true)}
+          aria-haspopup="dialog"
+        >
+          <PictureIcon />
+          <span>
+            <strong>如果需要展示图片，请联系站长插入</strong>
+            <small>前台投稿暂不开放图片上传</small>
+          </span>
+          <ArrowIcon />
+        </button>
+
+        {error && <p className="promote-form__error" role="alert">{error}</p>}
+
+        <button className="promote-form__submit" type="submit" disabled={submitting}>
+          {submitting ? '正在提交…' : '提交活动审核'}
+        </button>
+      </form>
     </ModalShell>
   )
 }
@@ -743,6 +1249,200 @@ function FindGroupsPage({ onSearch, onPromote }) {
   )
 }
 
+function ActivityCard({ activity, onCopy, copied }) {
+  const modeLabels = activity.modes.map((mode) =>
+    mode === 'online' ? '线上' : '线下',
+  )
+
+  return (
+    <article className={`activity-card${activity.pinned ? ' is-pinned' : ''}`}>
+      <div className="activity-card__topline">
+        <div>
+          {activity.pinned && <span className="activity-card__pin">置顶</span>}
+          {modeLabels.map((label) => <span key={label}>{label}</span>)}
+        </div>
+        <span>SCNU ACTIVITY</span>
+      </div>
+
+      {activity.imageUrl && (
+        <img
+          className="activity-card__image"
+          src={activity.imageUrl}
+          alt={`${activity.title}活动图片`}
+          loading="lazy"
+        />
+      )}
+
+      <h3>{activity.title}</h3>
+      <p className="activity-card__content">{activity.content}</p>
+
+      <div className="activity-card__times">
+        <strong>活动时间</strong>
+        <ul>
+          {activity.times.map((time) => (
+            <li key={time}>{formatActivityTime(time)}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="activity-card__group">
+        <div>
+          <span>发起同好群</span>
+          <strong>{activity.groupName}</strong>
+          <small>QQ 群号 {activity.groupQq}</small>
+        </div>
+        <button
+          type="button"
+          onClick={() => onCopy(activity.groupQq, `activity-${activity.id}`)}
+          aria-label={`复制 QQ 群号 ${activity.groupQq}`}
+        >
+          <CopyIcon />
+          {copied ? '已复制' : '复制群号'}
+        </button>
+      </div>
+    </article>
+  )
+}
+
+function EventsPage({ onSubmitActivity, onCopy, copiedGroupId }) {
+  const [searchInput, setSearchInput] = useState('')
+  const [query, setQuery] = useState('')
+  const [activityPage, setActivityPage] = useState(1)
+  const [pageCount, setPageCount] = useState(1)
+  const [activities, setActivities] = useState([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    setError('')
+
+    getPublicActivities({
+      query,
+      page: activityPage,
+      pageSize: ACTIVITIES_PER_PAGE,
+      signal: controller.signal,
+    })
+      .then((result) => {
+        setActivities(result.items)
+        setTotal(result.total)
+        setPageCount(result.pageCount)
+        if (result.page !== activityPage) setActivityPage(result.page)
+      })
+      .catch((requestError) => {
+        if (requestError.name !== 'AbortError') setError(requestError.message)
+      })
+      .finally(() => setLoading(false))
+
+    return () => controller.abort()
+  }, [query, activityPage, refreshKey])
+
+  const handleSearch = (event) => {
+    event.preventDefault()
+    setActivityPage(1)
+    setQuery(searchInput.trim())
+  }
+
+  return (
+    <section className="page page--events" aria-labelledby="events-title">
+      <div className="events-hero">
+        <div>
+          <p className="section-kicker">SCNU ACTIVITY SQUARE / 华师同好</p>
+          <h2 id="events-title">华师同好活动广场</h2>
+          <p className="lead">
+            看看最近有什么局，也可以把你的线上或线下活动提交给站长审核。
+          </p>
+        </div>
+        <button type="button" onClick={onSubmitActivity} aria-haspopup="dialog">
+          <MegaphoneIcon />
+          提交活动
+        </button>
+      </div>
+
+      <form className="activity-search" role="search" onSubmit={handleSearch}>
+        <SearchIcon />
+        <label className="visually-hidden" htmlFor="activity-query">
+          搜索活动标题、内容或群名
+        </label>
+        <input
+          id="activity-query"
+          type="search"
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          placeholder="搜索活动标题、内容、群名或 QQ 群号"
+        />
+        <button type="submit">搜索活动</button>
+      </form>
+
+      <div className="events-summary" aria-live="polite">
+        <p>{query ? `“${query}”找到 ${total} 个活动` : `广场共有 ${total} 个活动`}</p>
+        {query && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchInput('')
+              setQuery('')
+              setActivityPage(1)
+            }}
+          >
+            清除搜索
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="empty-results"><strong>正在打开广场</strong><p>正在读取最新活动…</p></div>
+      ) : error ? (
+        <div className="empty-results">
+          <strong>暂时无法读取活动</strong>
+          <p>{error}</p>
+          <button type="button" onClick={() => setRefreshKey((value) => value + 1)}>重试</button>
+        </div>
+      ) : activities.length ? (
+        <div className="activity-grid">
+          {activities.map((activity) => (
+            <ActivityCard
+              key={activity.id}
+              activity={activity}
+              onCopy={onCopy}
+              copied={copiedGroupId === `activity-${activity.id}`}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="empty-results">
+          <strong>{query ? '没有找到相关活动' : '广场还在等第一个活动'}</strong>
+          <p>{query ? '换个短一点的关键词试试。' : '有想约的活动，就来提交第一份申请吧。'}</p>
+          <button type="button" onClick={onSubmitActivity}>提交活动</button>
+        </div>
+      )}
+
+      {pageCount > 1 && (
+        <div className="group-pagination activity-pagination" aria-label="活动分页">
+          <button
+            type="button"
+            onClick={() => setActivityPage((page) => Math.max(1, page - 1))}
+            disabled={activityPage === 1 || loading}
+          >
+            上一页
+          </button>
+          <span>{activityPage} / {pageCount}</span>
+          <button
+            type="button"
+            onClick={() => setActivityPage((page) => Math.min(pageCount, page + 1))}
+            disabled={activityPage === pageCount || loading}
+          >
+            下一页
+          </button>
+        </div>
+      )}
+    </section>
+  )
+}
+
 function GroupCard({ group, onCopy, copied }) {
   return (
     <article className="group-card">
@@ -883,6 +1583,18 @@ export default function App() {
   const [activeModal, setActiveModal] = useState(() =>
     getInitialRoute().page === ADMIN_PAGE ? '' : 'announcement',
   )
+  const releaseLogReturnRef = useRef('')
+
+  const openReleaseLog = (returnTo = '') => {
+    releaseLogReturnRef.current = returnTo
+    setActiveModal('release-log')
+  }
+
+  const closeReleaseLog = () => {
+    const returnTo = releaseLogReturnRef.current
+    releaseLogReturnRef.current = ''
+    setActiveModal(returnTo)
+  }
 
   useEffect(() => {
     const syncRoute = () => setRoute(getInitialRoute())
@@ -897,7 +1609,7 @@ export default function App() {
   useEffect(() => {
     document.title =
       route.page === ADMIN_PAGE
-        ? '同好群管理 · 华南奶蛙师范大学'
+        ? '同好群与活动管理 · 华南奶蛙师范大学'
         : '华南奶蛙师范大学'
   }, [route.page])
 
@@ -924,7 +1636,8 @@ export default function App() {
     const previousOverflow = document.body.style.overflow
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        setActiveModal(getNextStartupModal)
+        if (activeModal === 'release-log') closeReleaseLog()
+        else setActiveModal(getNextStartupModal)
       }
     }
 
@@ -966,6 +1679,7 @@ export default function App() {
   const activeNavPage = route.page === RESULT_PAGE ? 'find' : route.page
   const isResultsPage = route.page === RESULT_PAGE
   const isAdminPage = route.page === ADMIN_PAGE
+  const isWidePage = isResultsPage || isAdminPage || route.page === 'events'
 
   return (
     <div className="app-shell">
@@ -1022,6 +1736,15 @@ export default function App() {
                 <MegaphoneIcon />
                 想要宣群？
               </button>
+              <button
+                className="header-action header-action--release"
+                type="button"
+                onClick={() => openReleaseLog()}
+                aria-haspopup="dialog"
+              >
+                <HistoryIcon />
+                最近更新
+              </button>
             </>
           )}
         </div>
@@ -1031,7 +1754,7 @@ export default function App() {
         className={`site-main${isResultsPage ? ' site-main--results' : ''}${isAdminPage ? ' site-main--admin' : ''}`}
       >
         <div
-          className={`content-panel${isResultsPage || isAdminPage ? ' content-panel--wide' : ''}${isAdminPage ? ' content-panel--admin' : ''}`}
+          className={`content-panel${isWidePage ? ' content-panel--wide' : ''}${isAdminPage ? ' content-panel--admin' : ''}`}
           key={`${route.page}-${route.query}`}
         >
           {route.page === 'home' && <HomePage />}
@@ -1053,6 +1776,13 @@ export default function App() {
               query={route.query}
               onSearch={(query) => updateRoute(RESULT_PAGE, query)}
               onBack={() => updateRoute('find')}
+              onCopy={handleCopy}
+              copiedGroupId={copiedGroupId}
+            />
+          )}
+          {route.page === 'events' && (
+            <EventsPage
+              onSubmitActivity={() => setActiveModal('activity-submit')}
               onCopy={handleCopy}
               copiedGroupId={copiedGroupId}
             />
@@ -1082,13 +1812,22 @@ export default function App() {
         <AnnouncementModal onClose={closeActiveModal} />
       )}
       {activeModal === 'new-features' && (
-        <NewFeaturesModal onClose={closeActiveModal} />
+        <NewFeaturesModal
+          onClose={closeActiveModal}
+          onOpenReleaseLog={() => openReleaseLog('new-features')}
+        />
       )}
       {activeModal === 'sponsor' && (
         <SponsorModal onClose={closeActiveModal} />
       )}
       {activeModal === 'promote' && (
         <PromoteGroupModal onClose={closeActiveModal} />
+      )}
+      {activeModal === 'activity-submit' && (
+        <ActivitySubmissionModal onClose={closeActiveModal} />
+      )}
+      {activeModal === 'release-log' && (
+        <ReleaseLogModal onClose={closeReleaseLog} />
       )}
     </div>
   )

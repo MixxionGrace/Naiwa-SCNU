@@ -13,9 +13,12 @@ API_CONTAINER=naiwa-scnu-api
 NETWORK_NAME=naiwa-scnu-net
 API_IMAGE=naiwa-scnu-api:latest
 DATA_DIR="$APP_ROOT/api-data"
+COS_ENV_FILE="$APP_ROOT/cos.env"
 NGINX_CONFIG="$APP_ROOT/nginx/default.conf"
 SEED_FILE="$BUNDLE_DIR/seed/groups.json"
 APPLICATIONS_SEED_FILE="$BUNDLE_DIR/seed/applications.json"
+ACTIVITIES_SEED_FILE="$BUNDLE_DIR/seed/activities.json"
+ACTIVITY_APPLICATIONS_SEED_FILE="$BUNDLE_DIR/seed/activity-applications.json"
 TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
 NGINX_BACKUP="$NGINX_CONFIG.$TIMESTAMP.bak"
 
@@ -26,6 +29,8 @@ for required_path in \
   "$BUNDLE_DIR/server/package-lock.json" \
   "$SEED_FILE" \
   "$APPLICATIONS_SEED_FILE" \
+  "$ACTIVITIES_SEED_FILE" \
+  "$ACTIVITY_APPLICATIONS_SEED_FILE" \
   "$NGINX_CONFIG"; do
   if [[ ! -e "$required_path" ]]; then
     echo "缺少发布文件：$required_path" >&2
@@ -46,12 +51,41 @@ fi
 if [[ ! -f "$DATA_DIR/applications.json" ]]; then
   sudo install -m 0640 "$APPLICATIONS_SEED_FILE" "$DATA_DIR/applications.json"
 fi
+if [[ ! -f "$DATA_DIR/activities.json" ]]; then
+  sudo install -m 0640 "$ACTIVITIES_SEED_FILE" "$DATA_DIR/activities.json"
+fi
+if [[ ! -f "$DATA_DIR/activity-applications.json" ]]; then
+  sudo install -m 0640 "$ACTIVITY_APPLICATIONS_SEED_FILE" "$DATA_DIR/activity-applications.json"
+fi
 sudo chown -R 1000:1000 "$DATA_DIR"
+
+COS_ENV_ARGS=()
+IMAGE_STORAGE_MODE=local
+if [[ -f "$COS_ENV_FILE" ]]; then
+  sudo chmod 0600 "$COS_ENV_FILE"
+  COS_ENV_ARGS=(--env-file "$COS_ENV_FILE")
+  IMAGE_STORAGE_MODE=cos
+fi
 
 sudo docker build -t "$API_IMAGE" "$BUNDLE_DIR/server"
 
 if ! sudo docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
   sudo docker network create "$NETWORK_NAME" >/dev/null
+fi
+
+if [[ "$IMAGE_STORAGE_MODE" == cos ]]; then
+  sudo docker run --rm \
+    --network "$NETWORK_NAME" \
+    --memory 192m \
+    --memory-swap 192m \
+    --pids-limit 64 \
+    --read-only \
+    --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+    --cap-drop ALL \
+    --security-opt no-new-privileges \
+    "${COS_ENV_ARGS[@]}" \
+    -v "$DATA_DIR:/app/data:rw" \
+    "$API_IMAGE" node src/migrate-activity-images.js
 fi
 
 if sudo docker ps -a --format '{{.Names}}' | grep -Fxq "$API_CONTAINER"; then
@@ -69,12 +103,15 @@ sudo docker run -d \
   --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   --cap-drop ALL \
   --security-opt no-new-privileges \
+  "${COS_ENV_ARGS[@]}" \
   -v "$DATA_DIR:/app/data:rw" \
   "$API_IMAGE" >/dev/null
 
 for attempt in {1..20}; do
-  if sudo docker exec "$API_CONTAINER" \
-    wget -qO- http://127.0.0.1:3001/api/health | grep -q '"ok":true'; then
+  HEALTH_RESPONSE=$(sudo docker exec "$API_CONTAINER" \
+    wget -qO- http://127.0.0.1:3001/api/health 2>/dev/null || true)
+  if grep -q '"ok":true' <<<"$HEALTH_RESPONSE" && \
+    grep -q "\"imageStorage\":\"$IMAGE_STORAGE_MODE\"" <<<"$HEALTH_RESPONSE"; then
     break
   fi
   if [[ "$attempt" -eq 20 ]]; then
@@ -156,10 +193,19 @@ sudo mv "$WEB_ROOT/index.html.next" "$WEB_ROOT/index.html"
 curl --max-time 10 --noproxy '*' -kfsS --resolve milk-frog.cn:443:127.0.0.1 \
   https://milk-frog.cn/api/groups?page=1\&pageSize=20 >/dev/null
 curl --max-time 10 --noproxy '*' -kfsS --resolve milk-frog.cn:443:127.0.0.1 \
+  https://milk-frog.cn/api/activities?page=1\&pageSize=12 >/dev/null
+curl --max-time 10 --noproxy '*' -kfsS --resolve milk-frog.cn:443:127.0.0.1 \
   https://milk-frog.cn/api/metrics/pv | grep -q '"startDate":"2026-10-15"'
 
 echo "DEPLOY_OK"
 echo "Web root: $WEB_ROOT"
 echo "API data: $DATA_DIR/groups.json"
 echo "Application data: $DATA_DIR/applications.json"
+echo "Activity data: $DATA_DIR/activities.json"
+echo "Activity application data: $DATA_DIR/activity-applications.json"
+if [[ "$IMAGE_STORAGE_MODE" == cos ]]; then
+  echo "Activity images: Tencent COS (configured by $COS_ENV_FILE)"
+else
+  echo "Activity images: $DATA_DIR/activity-images"
+fi
 echo "PV data: $DATA_DIR/metrics.json"

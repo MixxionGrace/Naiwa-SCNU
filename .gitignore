@@ -7,5 +7,6 @@ dist
 .env
 .env.*
 !.env.example
+cos.env
 server/data/*.tmp
 server/data/metrics.json

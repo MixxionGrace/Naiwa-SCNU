@@ -223,7 +223,7 @@ function NewFeaturesModal({ onClose, onOpenReleaseLog }) {
           <div>
             <h3>华师同好活动广场上线</h3>
             <p>
-              可以浏览线上、线下同好活动，也能填写活动标题、内容、多个活动时间和群聊信息提交申请。
+              可以浏览线上、线下同好活动，也能填写活动标题、内容、活动时间（支持待定）和群聊信息提交申请。
               通过站长审核后，活动才会在广场公开展示；申请人 QQ 号不会公开。
             </p>
           </div>
@@ -654,10 +654,13 @@ function validateActivityFields(form) {
     errors.applicantQq = '申请人 QQ 号应为 5–12 位数字。'
   }
   if (
-    !form.times.length ||
-    form.times.length > 20 ||
-    normalizedTimes.length !== form.times.length ||
-    new Set(normalizedTimes).size !== normalizedTimes.length
+    !form.timeTbd &&
+    (
+      !form.times.length ||
+      form.times.length > 20 ||
+      normalizedTimes.length !== form.times.length ||
+      new Set(normalizedTimes).size !== normalizedTimes.length
+    )
   ) {
     errors.times = '请选择 1–20 个有效且不重复的活动时间。'
   }
@@ -675,6 +678,7 @@ function ActivitySubmissionModal({ onClose }) {
     groupQq: '',
     applicantQq: '',
     times: [''],
+    timeTbd: false,
     modes: [],
   })
   const [fieldErrors, setFieldErrors] = useState({})
@@ -699,6 +703,12 @@ function ActivitySubmissionModal({ onClose }) {
   const removeTime = (index) => {
     if (form.times.length === 1) return
     updateField('times', form.times.filter((_, timeIndex) => timeIndex !== index))
+  }
+
+  const toggleTimeTbd = () => {
+    setForm((current) => ({ ...current, timeTbd: !current.timeTbd }))
+    setFieldErrors((current) => ({ ...current, times: '', timeTbd: '' }))
+    setError('')
   }
 
   const openTimePicker = (index) => {
@@ -737,7 +747,7 @@ function ActivitySubmissionModal({ onClose }) {
     try {
       await createActivityApplication({
         ...form,
-        times: form.times.map(toActivityIsoTime),
+        times: form.timeTbd ? [] : form.times.map(toActivityIsoTime),
       })
       setSubmitted(true)
     } catch (requestError) {
@@ -863,51 +873,67 @@ function ActivitySubmissionModal({ onClose }) {
           </fieldset>
 
           <fieldset className="promote-form__wide activity-time-fieldset">
-            <legend>活动时间（可多选，精确到分钟）</legend>
+            <legend>活动时间（可多选或待定）</legend>
             <div className="activity-time-heading">
-              <span>已添加 {form.times.length} 个时间</span>
-              <button
-                type="button"
-                onClick={() => updateField('times', [...form.times, ''])}
-                disabled={form.times.length >= 20}
-              >
-                + 添加时间
-              </button>
+              <span>{form.timeTbd ? '当前时间：待定' : `已添加 ${form.times.length} 个时间`}</span>
+              <div className="activity-time-actions">
+                <button
+                  className={`activity-time-tbd-toggle${form.timeTbd ? ' is-active' : ''}`}
+                  type="button"
+                  onClick={toggleTimeTbd}
+                  aria-pressed={form.timeTbd}
+                >
+                  {form.timeTbd ? '✓ 时间待定' : '时间待定'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateField('times', [...form.times, ''])}
+                  disabled={form.timeTbd || form.times.length >= 20}
+                >
+                  + 添加时间
+                </button>
+              </div>
             </div>
-            <div className="activity-time-list">
-              {form.times.map((time, index) => (
-                <div className="activity-time-row" key={`activity-time-${index}`}>
-                  <div className="activity-time-picker">
-                    <input
-                      ref={(element) => { timeInputRefs.current[index] = element }}
-                      type="datetime-local"
-                      step="60"
-                      value={time}
-                      onChange={(event) => updateTime(index, event.target.value)}
-                      aria-label={`活动时间 ${index + 1}`}
-                      required
-                    />
+            {form.timeTbd ? (
+              <div className="activity-time-tbd-state">
+                具体时间暂未确定，审核通过后将在活动卡片和详情中显示“待定”。
+              </div>
+            ) : (
+              <div className="activity-time-list">
+                {form.times.map((time, index) => (
+                  <div className="activity-time-row" key={`activity-time-${index}`}>
+                    <div className="activity-time-picker">
+                      <input
+                        ref={(element) => { timeInputRefs.current[index] = element }}
+                        type="datetime-local"
+                        step="60"
+                        value={time}
+                        onChange={(event) => updateTime(index, event.target.value)}
+                        aria-label={`活动时间 ${index + 1}`}
+                        required
+                      />
+                      <button
+                        className="activity-time-picker__trigger"
+                        type="button"
+                        onClick={() => openTimePicker(index)}
+                        aria-label={`打开活动时间 ${index + 1} 的日期和时间选择器`}
+                      >
+                        <CalendarIcon />
+                        <span>选择时间</span>
+                      </button>
+                    </div>
                     <button
-                      className="activity-time-picker__trigger"
                       type="button"
-                      onClick={() => openTimePicker(index)}
-                      aria-label={`打开活动时间 ${index + 1} 的日期和时间选择器`}
+                      onClick={() => removeTime(index)}
+                      disabled={form.times.length === 1}
+                      aria-label={`删除活动时间 ${index + 1}`}
                     >
-                      <CalendarIcon />
-                      <span>选择时间</span>
+                      删除
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeTime(index)}
-                    disabled={form.times.length === 1}
-                    aria-label={`删除活动时间 ${index + 1}`}
-                  >
-                    删除
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
             {fieldErrors.times && <small>{fieldErrors.times}</small>}
           </fieldset>
 
@@ -1249,7 +1275,7 @@ function FindGroupsPage({ onSearch, onPromote }) {
   )
 }
 
-function ActivityDetailModal({ activity, onClose, onCopy, copied }) {
+function ActivityDetailModal({ activity, onClose, onCopy, onPreviewImage, copied }) {
   const modeLabels = activity.modes.map((mode) =>
     mode === 'online' ? '线上' : '线下',
   )
@@ -1282,9 +1308,13 @@ function ActivityDetailModal({ activity, onClose, onCopy, copied }) {
       <div className="activity-detail-modal__times">
         <strong>活动时间</strong>
         <ul>
-          {activity.times.map((time) => (
-            <li key={time}>{formatActivityTime(time)}</li>
-          ))}
+          {activity.timeTbd ? (
+            <li className="activity-time-is-tbd">待定</li>
+          ) : (
+            activity.times.map((time) => (
+              <li key={time}>{formatActivityTime(time)}</li>
+            ))
+          )}
         </ul>
       </div>
 
@@ -1310,24 +1340,38 @@ function ActivityDetailModal({ activity, onClose, onCopy, copied }) {
             <PictureIcon />
             <div>
               <strong>活动图片</strong>
-              <span>点击图片查看原图</span>
+              <span>点击图片放大查看</span>
             </div>
           </div>
-          <a
+          <button
             className="activity-detail-modal__image-link"
-            href={activity.imageUrl}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={`打开${activity.title}活动原图`}
+            type="button"
+            onClick={() => onPreviewImage(activity)}
+            aria-label={`放大查看${activity.title}活动图片`}
           >
             <img
               className="activity-detail-modal__image"
               src={activity.imageUrl}
               alt={`${activity.title}活动图片`}
             />
-          </a>
+          </button>
         </section>
       )}
+    </ModalShell>
+  )
+}
+
+function ActivityImagePreviewModal({ activity, onClose }) {
+  return (
+    <ModalShell
+      labelledBy="activity-image-preview-title"
+      className="activity-image-preview-modal"
+      onClose={onClose}
+    >
+      <h2 id="activity-image-preview-title" className="visually-hidden">
+        {activity.title}活动图片
+      </h2>
+      <img src={activity.imageUrl} alt={`${activity.title}活动图片大图`} />
     </ModalShell>
   )
 }
@@ -1359,9 +1403,13 @@ function ActivityCard({ activity, onOpen }) {
       <div className="activity-card__times">
         <strong>活动时间</strong>
         <ul>
-          {activity.times.map((time) => (
-            <li key={time}>{formatActivityTime(time)}</li>
-          ))}
+          {activity.timeTbd ? (
+            <li className="activity-time-is-tbd">待定</li>
+          ) : (
+            activity.times.map((time) => (
+              <li key={time}>{formatActivityTime(time)}</li>
+            ))
+          )}
         </ul>
       </div>
 
@@ -1654,6 +1702,7 @@ export default function App() {
   const [route, setRoute] = useState(getInitialRoute)
   const [copiedGroupId, setCopiedGroupId] = useState('')
   const [selectedActivity, setSelectedActivity] = useState(null)
+  const [previewActivityImage, setPreviewActivityImage] = useState(null)
   const [pvCount, setPvCount] = useState(null)
   const pvTrackedRef = useRef(false)
   const [activeModal, setActiveModal] = useState(() =>
@@ -1707,12 +1756,13 @@ export default function App() {
   }, [route.page])
 
   useEffect(() => {
-    if (!activeModal && !selectedActivity) return undefined
+    if (!activeModal && !selectedActivity && !previewActivityImage) return undefined
 
     const previousOverflow = document.body.style.overflow
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        if (selectedActivity) setSelectedActivity(null)
+        if (previewActivityImage) setPreviewActivityImage(null)
+        else if (selectedActivity) setSelectedActivity(null)
         else if (activeModal === 'release-log') closeReleaseLog()
         else setActiveModal(getNextStartupModal)
       }
@@ -1725,7 +1775,7 @@ export default function App() {
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [activeModal, selectedActivity])
+  }, [activeModal, selectedActivity, previewActivityImage])
 
   const updateRoute = (page, query = '') => {
     const nextHash =
@@ -1736,6 +1786,7 @@ export default function App() {
     window.history.pushState(null, '', nextHash)
     setRoute({ page, query })
     setSelectedActivity(null)
+    setPreviewActivityImage(null)
     if (page === ADMIN_PAGE) setActiveModal('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -1881,7 +1932,7 @@ export default function App() {
       )}
 
       <footer className={isAdminPage ? 'site-footer--admin' : ''}>
-        <p>华师音游同好 · 趣味制作</p>
+        <p>华师音游同好</p>
         <p>非华南师范大学官方网站</p>
       </footer>
 
@@ -1908,7 +1959,14 @@ export default function App() {
           activity={selectedActivity}
           onClose={() => setSelectedActivity(null)}
           onCopy={handleCopy}
+          onPreviewImage={setPreviewActivityImage}
           copied={copiedGroupId === `activity-${selectedActivity.id}`}
+        />
+      )}
+      {previewActivityImage && (
+        <ActivityImagePreviewModal
+          activity={previewActivityImage}
+          onClose={() => setPreviewActivityImage(null)}
         />
       )}
       {activeModal === 'release-log' && (

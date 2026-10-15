@@ -83,6 +83,7 @@ function validateActivityPayload(
   const groupQq = String(body?.groupQq ?? '').replace(/\s+/g, '')
   const rawTimes = Array.isArray(body?.times) ? body.times : []
   const rawModes = Array.isArray(body?.modes) ? body.modes : []
+  const timeTbd = body?.timeTbd === true
   const fields = {}
 
   const times = [...new Set(
@@ -106,7 +107,15 @@ function validateActivityPayload(
     fields.groupName = '群名需为 1–80 个字符。'
   }
   if (!/^\d{5,12}$/.test(groupQq)) fields.groupQq = 'QQ 群号应为 5–12 位数字。'
-  if (!rawTimes.length || rawTimes.length > 20 || times.length !== rawTimes.length) {
+  if (body?.timeTbd !== undefined && typeof body.timeTbd !== 'boolean') {
+    fields.timeTbd = '活动时间待定状态格式不正确。'
+  }
+  if (timeTbd && rawTimes.length) {
+    fields.times = '活动时间待定时请勿填写具体时间。'
+  } else if (
+    !timeTbd &&
+    (!rawTimes.length || rawTimes.length > 20 || times.length !== rawTimes.length)
+  ) {
     fields.times = '请选择 1–20 个有效且不重复的活动时间。'
   }
   if (!rawModes.length || rawModes.length > 2 || modes.length !== rawModes.length) {
@@ -147,7 +156,8 @@ function validateActivityPayload(
     content,
     groupName,
     groupQq,
-    times,
+    times: timeTbd ? [] : times,
+    timeTbd,
     modes,
     ...(includeApplicant ? { applicantQq } : {}),
     ...(includePinned ? { pinned } : {}),
@@ -731,6 +741,7 @@ export function createApp({
           groupName: application.groupName,
           groupQq: application.groupQq,
           times: application.times,
+          timeTbd: Boolean(application.timeTbd),
           modes: application.modes,
           imageUrl: application.imageUrl || '',
           pinned: Boolean(ctx.request.body?.pinned),

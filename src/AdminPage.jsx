@@ -592,6 +592,7 @@ function ActivityEditor({
       ? activity.times.map(toLocalDateTimeValue).filter(Boolean)
       : [''],
   )
+  const [timeTbd, setTimeTbd] = useState(Boolean(activity?.timeTbd))
   const [modes, setModes] = useState(activity?.modes || [])
   const [pinned, setPinned] = useState(Boolean(activity?.pinned))
   const [imageUrl, setImageUrl] = useState(activity?.imageUrl || '')
@@ -671,7 +672,8 @@ function ActivityEditor({
         content,
         groupName,
         groupQq,
-        times: times.map(toIsoDateTime),
+        times: timeTbd ? [] : times.map(toIsoDateTime),
+        timeTbd,
         modes,
         imageUrl: uploadedImageUrl || imageUrl,
         ...(application ? { applicantQq } : { pinned }),
@@ -820,37 +822,56 @@ function ActivityEditor({
         </fieldset>
 
         <fieldset className="admin-activity-fieldset">
-          <legend>活动时间（可多选）</legend>
+          <legend>活动时间（可多选或待定）</legend>
           <div className="admin-activity-time-heading">
-            <span>已添加 {times.length} 个时间</span>
-            <button
-              type="button"
-              onClick={() => setTimes((current) => [...current, ''])}
-              disabled={times.length >= 20}
-            >
-              + 添加时间
-            </button>
+            <span>{timeTbd ? '当前时间：待定' : `已添加 ${times.length} 个时间`}</span>
+            <div className="admin-activity-time-actions">
+              <button
+                className={timeTbd ? 'is-active' : ''}
+                type="button"
+                onClick={() => {
+                  setTimeTbd((current) => !current)
+                  setFieldErrors((current) => ({ ...current, times: '', timeTbd: '' }))
+                }}
+                aria-pressed={timeTbd}
+              >
+                {timeTbd ? '✓ 时间待定' : '时间待定'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTimes((current) => [...current, ''])}
+                disabled={timeTbd || times.length >= 20}
+              >
+                + 添加时间
+              </button>
+            </div>
           </div>
-          <div className="admin-activity-times">
-            {times.map((time, index) => (
-              <div key={`admin-time-${index}`}>
-                <input
-                  type="datetime-local"
-                  step="60"
-                  value={time}
-                  onChange={(event) => updateTime(index, event.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setTimes((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                  disabled={times.length === 1}
-                >
-                  删除
-                </button>
-              </div>
-            ))}
-          </div>
+          {timeTbd ? (
+            <div className="admin-activity-time-tbd">
+              具体时间暂未确定，前台会显示“待定”。
+            </div>
+          ) : (
+            <div className="admin-activity-times">
+              {times.map((time, index) => (
+                <div key={`admin-time-${index}`}>
+                  <input
+                    type="datetime-local"
+                    step="60"
+                    value={time}
+                    onChange={(event) => updateTime(index, event.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setTimes((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                    disabled={times.length === 1}
+                  >
+                    删除
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           {fieldErrors.times && <small>{fieldErrors.times}</small>}
         </fieldset>
 
@@ -1034,7 +1055,11 @@ function ActivityModeTags({ modes }) {
   )
 }
 
-function ActivityTimesSummary({ times }) {
+function ActivityTimesSummary({ times, timeTbd }) {
+  if (timeTbd) {
+    return <span className="admin-activity-time-tbd-badge">待定</span>
+  }
+
   return (
     <div className="admin-activity-time-summary">
       {times.map((time) => (
@@ -1313,7 +1338,7 @@ function AdminDashboard({ token, onUnauthorized }) {
                       <small className="admin-activity-excerpt">{activity.content}</small>
                     </td>
                     <td><strong>{activity.groupName}</strong><code>{activity.groupQq}</code></td>
-                    <td><ActivityTimesSummary times={activity.times} /></td>
+                    <td><ActivityTimesSummary times={activity.times} timeTbd={activity.timeTbd} /></td>
                     <td><ActivityModeTags modes={activity.modes} /></td>
                     <td>
                       <div className="admin-row-actions admin-row-actions--activity">
@@ -1335,7 +1360,7 @@ function AdminDashboard({ token, onUnauthorized }) {
                       <small className="admin-activity-excerpt">{application.content}</small>
                     </td>
                     <td><strong>{application.groupName}</strong><code>{application.groupQq}</code></td>
-                    <td><ActivityTimesSummary times={application.times} /></td>
+                    <td><ActivityTimesSummary times={application.times} timeTbd={application.timeTbd} /></td>
                     <td><ActivityModeTags modes={application.modes} /></td>
                     <td><code className="admin-applicant-qq">{application.applicantQq}</code></td>
                     <td>

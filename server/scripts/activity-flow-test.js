@@ -126,6 +126,7 @@ async function run() {
     groupQq,
     applicantQq: '778899001',
     times: ['2026-11-01T12:30:00.000Z', '2026-11-08T12:30:00.000Z'],
+    timeTbd: false,
     modes: ['online', 'offline'],
   })
 
@@ -133,6 +134,19 @@ async function run() {
     const initialPublic = await request(origin, '/api/activities')
     assert.equal(initialPublic.status, 200)
     assert.equal(initialPublic.body.total, 0)
+
+    const contradictoryTime = await request(origin, '/api/activity-applications', {
+      method: 'POST',
+      body: {
+        ...createPayload('Contradictory Time', '123450000'),
+        timeTbd: true,
+      },
+    })
+    assert.equal(contradictoryTime.status, 422)
+    assert.equal(
+      contradictoryTime.body.fields.times,
+      '活动时间待定时请勿填写具体时间。',
+    )
 
     const betaSubmission = await request(origin, '/api/activity-applications', {
       method: 'POST',
@@ -259,7 +273,11 @@ async function run() {
 
     const rejectedSubmission = await request(origin, '/api/activity-applications', {
       method: 'POST',
-      body: createPayload('Rejected Activity', '123450003'),
+      body: {
+        ...createPayload('Rejected Activity', '123450003'),
+        times: [],
+        timeTbd: true,
+      },
     })
     const rejected = await request(
       origin,
@@ -268,6 +286,7 @@ async function run() {
     )
     assert.equal(rejected.status, 200)
     assert.equal(rejected.body.item.status, 'rejected')
+    assert.equal(rejected.body.item.timeTbd, true)
 
     const rejectedIsHidden = await request(origin, '/api/activities?q=Rejected')
     assert.equal(rejectedIsHidden.body.total, 0)
@@ -277,6 +296,8 @@ async function run() {
       token,
       body: {
         ...createPayload('Admin Created Activity', '123450004'),
+        times: [],
+        timeTbd: true,
         pinned: false,
         imageUrl: '',
       },
@@ -284,12 +305,15 @@ async function run() {
     assert.equal(adminCreated.status, 201)
     assert.equal(adminCreated.body.item.title, 'Admin Created Activity')
     assert.equal(adminCreated.body.item.pinned, false)
+    assert.equal(adminCreated.body.item.timeTbd, true)
+    assert.deepEqual(adminCreated.body.item.times, [])
     assert.equal('applicantQq' in adminCreated.body.item, false)
 
     const adminCreatedIsPublic = await request(origin, '/api/activities?q=Admin')
     assert.equal(adminCreatedIsPublic.status, 200)
     assert.equal(adminCreatedIsPublic.body.total, 1)
     assert.equal(adminCreatedIsPublic.body.items[0].id, adminCreated.body.item.id)
+    assert.equal(adminCreatedIsPublic.body.items[0].timeTbd, true)
 
     for (const activity of reordered.body.items) {
       const removed = await request(origin, `/api/admin/activities/${activity.id}`, {

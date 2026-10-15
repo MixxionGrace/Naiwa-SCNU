@@ -370,7 +370,7 @@ function GroupSearchForm({ initialQuery = '', onSearch, compact = false }) {
   )
 }
 
-function FindGroupsPage({ onSearch }) {
+function FindGroupsPage({ onSearch, onPromote }) {
   const [groupPage, setGroupPage] = useState(1)
   const [pageCount, setPageCount] = useState(1)
   const [groups, setGroups] = useState([])
@@ -419,7 +419,15 @@ function FindGroupsPage({ onSearch }) {
       <GroupSearchForm onSearch={onSearch} />
 
       <p className="search-tip">
-        <span>模糊搜索</span>
+        <button
+          className="search-tip__promote"
+          type="button"
+          onClick={onPromote}
+          aria-haspopup="dialog"
+        >
+          <MegaphoneIcon />
+          想要宣群？
+        </button>
         支持中文、英文、大小写和空格差异
       </p>
 
@@ -797,7 +805,10 @@ export default function App() {
             />
           )}
           {route.page === 'find' && (
-            <FindGroupsPage onSearch={(query) => updateRoute(RESULT_PAGE, query)} />
+            <FindGroupsPage
+              onSearch={(query) => updateRoute(RESULT_PAGE, query)}
+              onPromote={() => setActiveModal('promote')}
+            />
           )}
           {route.page === RESULT_PAGE && (
             <GroupResultsPage

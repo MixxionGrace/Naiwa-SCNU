@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import AdminPage from './AdminPage.jsx'
-import { getPageView, getPublicGroups, trackPageView } from './api.js'
+import {
+  ApiError,
+  checkGroupApplicationQq,
+  createGroupApplication,
+  getPageView,
+  getPublicGroups,
+  trackPageView,
+} from './api.js'
 import announcementPoster from './assets/scnu-sweet-girlfriend-poster.jpg'
 import sponsorWechat from './assets/sponsor-wechat.jpg'
 import sponsorAlipay from './assets/sponsor-alipay.jpg'
@@ -175,7 +182,132 @@ function SponsorModal({ onClose }) {
   )
 }
 
+function validatePromoteFields({ name, keywords, qq, applicantQq }) {
+  const errors = {}
+  const keywordItems = keywords.split(/[,，、\n]+/).map((item) => item.trim()).filter(Boolean)
+
+  if (!name.trim() || name.trim().length > 80) {
+    errors.name = '群名需为 1–80 个字符。'
+  }
+  if (!keywordItems.length || keywordItems.length > 20) {
+    errors.keywords = '请填写 1–20 个相关游戏或关键词。'
+  } else if (keywordItems.some((keyword) => keyword.length > 40)) {
+    errors.keywords = '每个游戏或关键词不能超过 40 个字符。'
+  }
+  if (!/^\d{5,12}$/.test(qq.replace(/\s+/g, ''))) {
+    errors.qq = 'QQ 群号应为 5–12 位数字。'
+  }
+  if (!/^\d{5,12}$/.test(applicantQq.replace(/\s+/g, ''))) {
+    errors.applicantQq = '申请人 QQ 号应为 5–12 位数字。'
+  }
+
+  return errors
+}
+
 function PromoteGroupModal({ onClose }) {
+  const [form, setForm] = useState({
+    name: '',
+    keywords: '',
+    qq: '',
+    applicantQq: '',
+  })
+  const [fieldErrors, setFieldErrors] = useState({})
+  const [availability, setAvailability] = useState(null)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [result, setResult] = useState(null)
+
+  const updateField = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }))
+    setFieldErrors((current) => ({ ...current, [field]: '' }))
+    setError('')
+    if (field === 'qq') setAvailability(null)
+  }
+
+  const checkQq = async ({ showDuplicate = false } = {}) => {
+    const qq = form.qq.replace(/\s+/g, '')
+    if (!/^\d{5,12}$/.test(qq)) return null
+
+    setAvailability({ status: 'checking', message: '正在检查 QQ 群号…' })
+    try {
+      const response = await checkGroupApplicationQq(qq)
+      setAvailability(response)
+      if (showDuplicate && response.status !== 'available') setResult(response)
+      return response
+    } catch (requestError) {
+      setAvailability(null)
+      if (showDuplicate) setError(requestError.message)
+      return null
+    }
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    const errors = validatePromoteFields(form)
+    setFieldErrors(errors)
+    setError('')
+    if (Object.keys(errors).length) return
+
+    setSubmitting(true)
+    try {
+      const duplicateCheck = await checkQq({ showDuplicate: true })
+      if (!duplicateCheck || duplicateCheck.status !== 'available') return
+
+      await createGroupApplication(form)
+      setResult({
+        status: 'submitted',
+        message: '申请已提交。审核通过后，这个群会自动展示在同好群列表中。',
+      })
+    } catch (requestError) {
+      if (requestError.code === 'ALREADY_PENDING') {
+        setResult({ status: 'pending', message: requestError.message })
+      } else if (requestError.code === 'ALREADY_APPROVED') {
+        setResult({ status: 'approved', message: requestError.message })
+      } else {
+        setError(requestError.message)
+        if (requestError instanceof ApiError) setFieldErrors(requestError.fields)
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (result) {
+    const titles = {
+      submitted: '申请已提交',
+      pending: '已经在审核中',
+      approved: '已经审核通过',
+    }
+
+    return (
+      <ModalShell
+        labelledBy="promote-result-title"
+        describedBy="promote-result-copy"
+        className="promote-modal promote-result-modal"
+        onClose={onClose}
+      >
+        <div className={`promote-result promote-result--${result.status}`}>
+          <span>{result.status === 'submitted' ? 'SUBMITTED' : 'QQ GROUP STATUS'}</span>
+          <h2 id="promote-result-title">{titles[result.status]}</h2>
+          <p id="promote-result-copy">{result.message}</p>
+        </div>
+        <div className="modal-actions promote-result__actions">
+          {result.status === 'approved' ? (
+            <button type="button" onClick={() => window.location.reload()}>
+              刷新页面试试
+            </button>
+          ) : result.status === 'pending' ? (
+            <button type="button" onClick={() => setResult(null)}>
+              返回修改
+            </button>
+          ) : (
+            <button type="button" onClick={onClose}>知道了</button>
+          )}
+        </div>
+      </ModalShell>
+    )
+  }
+
   return (
     <ModalShell
       labelledBy="promote-modal-title"
@@ -187,10 +319,83 @@ function PromoteGroupModal({ onClose }) {
         <span>SUBMIT YOUR GROUP</span>
         <h2 id="promote-modal-title">想要宣群？</h2>
         <p id="promote-modal-copy">
-          如果想在网站上宣群，请附带自己所在的校区，以及想要宣传的 QQ 群，联系站主。
+          填写申请并通过审核后，同好群会自动展示在页面中。
         </p>
       </div>
 
+      <form className="promote-form" onSubmit={handleSubmit} noValidate>
+        <div className="promote-form__grid">
+          <label>
+            <span>群名</span>
+            <input
+              value={form.name}
+              onChange={(event) => updateField('name', event.target.value)}
+              placeholder="例如：华师音游吹水群"
+              maxLength="80"
+              required
+            />
+            {fieldErrors.name && <small>{fieldErrors.name}</small>}
+          </label>
+
+          <label>
+            <span>QQ 群号</span>
+            <input
+              value={form.qq}
+              onChange={(event) => updateField('qq', event.target.value)}
+              onBlur={() => checkQq({ showDuplicate: true })}
+              inputMode="numeric"
+              placeholder="5–12 位数字"
+              maxLength="12"
+              required
+            />
+            {fieldErrors.qq && <small>{fieldErrors.qq}</small>}
+            {!fieldErrors.qq && availability?.status === 'available' && (
+              <em className="is-available">{availability.message}</em>
+            )}
+            {!fieldErrors.qq && availability?.status === 'checking' && (
+              <em>{availability.message}</em>
+            )}
+          </label>
+
+          <label className="promote-form__wide">
+            <span>相关游戏</span>
+            <textarea
+              value={form.keywords}
+              onChange={(event) => updateField('keywords', event.target.value)}
+              placeholder="多个游戏用逗号分隔，例如：原神，明日方舟等"
+              rows="3"
+              required
+            />
+            <em>多个游戏或关键词请使用逗号、顿号或换行分隔。</em>
+            {fieldErrors.keywords && <small>{fieldErrors.keywords}</small>}
+          </label>
+
+          <label className="promote-form__wide">
+            <span>申请人 QQ 号</span>
+            <input
+              value={form.applicantQq}
+              onChange={(event) => updateField('applicantQq', event.target.value)}
+              inputMode="numeric"
+              placeholder="用于站长联系你，不会公开"
+              maxLength="12"
+              required
+            />
+            {fieldErrors.applicantQq && <small>{fieldErrors.applicantQq}</small>}
+          </label>
+        </div>
+
+        {error && <p className="promote-form__error" role="alert">{error}</p>}
+
+        <button className="promote-form__submit" type="submit" disabled={submitting}>
+          {submitting ? '正在提交…' : '提交审核'}
+        </button>
+      </form>
+
+      <div className="promote-divider"><span>或者</span></div>
+
+      <p className="promote-contact-copy">
+        添加下方站长 QID 好友，由站长负责添加。
+      </p>
       <div className="promote-contact">
         <span>站主 QQID</span>
         <strong>NoahDayo</strong>
@@ -199,10 +404,6 @@ function PromoteGroupModal({ onClose }) {
       <p className="promote-notice">
         注意：只有华师相关的同好群或社团群可在网站里宣传。
       </p>
-
-      <div className="modal-actions">
-        <button type="button" onClick={onClose}>知道了</button>
-      </div>
     </ModalShell>
   )
 }

@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "smoke": "node scripts/smoke-test.js"
+    "smoke": "node scripts/smoke-test.js",
+    "test:review": "node scripts/review-flow-test.js"
   },
   "dependencies": {
     "@koa/router": "^12.0.1",

@@ -117,6 +117,14 @@ export class GroupStore {
     }
   }
 
+  async findByQq(qq, { excludeId = '' } = {}) {
+    const normalizedQq = String(qq ?? '').replace(/\s+/g, '')
+    const groups = await this.readAll()
+    return groups.find(
+      (group) => group.qq === normalizedQq && group.id !== excludeId,
+    ) || null
+  }
+
   async mutate(operation) {
     const run = async () => {
       const groups = await this.readAll()
@@ -147,6 +155,23 @@ export class GroupStore {
     })
   }
 
+  async createUnique(input) {
+    return this.mutate((groups) => {
+      const duplicate = groups.find((group) => group.qq === input.qq)
+      if (duplicate) return { item: null, duplicate }
+
+      const now = new Date().toISOString()
+      const group = {
+        id: randomUUID(),
+        ...input,
+        createdAt: now,
+        updatedAt: now,
+      }
+      groups.unshift(group)
+      return { item: group, duplicate: null }
+    })
+  }
+
   async update(id, input) {
     return this.mutate((groups) => {
       const index = groups.findIndex((group) => group.id === id)
@@ -158,6 +183,25 @@ export class GroupStore {
         updatedAt: new Date().toISOString(),
       }
       return groups[index]
+    })
+  }
+
+  async updateUnique(id, input) {
+    return this.mutate((groups) => {
+      const index = groups.findIndex((group) => group.id === id)
+      if (index === -1) return { item: null, duplicate: null, missing: true }
+
+      const duplicate = groups.find(
+        (group) => group.qq === input.qq && group.id !== id,
+      )
+      if (duplicate) return { item: null, duplicate, missing: false }
+
+      groups[index] = {
+        ...groups[index],
+        ...input,
+        updatedAt: new Date().toISOString(),
+      }
+      return { item: groups[index], duplicate: null, missing: false }
     })
   }
 

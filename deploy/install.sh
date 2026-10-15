@@ -15,6 +15,7 @@ API_IMAGE=naiwa-scnu-api:latest
 DATA_DIR="$APP_ROOT/api-data"
 NGINX_CONFIG="$APP_ROOT/nginx/default.conf"
 SEED_FILE="$BUNDLE_DIR/seed/groups.json"
+APPLICATIONS_SEED_FILE="$BUNDLE_DIR/seed/applications.json"
 TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
 NGINX_BACKUP="$NGINX_CONFIG.$TIMESTAMP.bak"
 
@@ -24,6 +25,7 @@ for required_path in \
   "$BUNDLE_DIR/server/Dockerfile" \
   "$BUNDLE_DIR/server/package-lock.json" \
   "$SEED_FILE" \
+  "$APPLICATIONS_SEED_FILE" \
   "$NGINX_CONFIG"; do
   if [[ ! -e "$required_path" ]]; then
     echo "缺少发布文件：$required_path" >&2
@@ -40,6 +42,9 @@ fi
 sudo install -d -m 0750 "$DATA_DIR"
 if [[ ! -f "$DATA_DIR/groups.json" ]]; then
   sudo install -m 0640 "$SEED_FILE" "$DATA_DIR/groups.json"
+fi
+if [[ ! -f "$DATA_DIR/applications.json" ]]; then
+  sudo install -m 0640 "$APPLICATIONS_SEED_FILE" "$DATA_DIR/applications.json"
 fi
 sudo chown -R 1000:1000 "$DATA_DIR"
 
@@ -156,4 +161,5 @@ curl --max-time 10 --noproxy '*' -kfsS --resolve milk-frog.cn:443:127.0.0.1 \
 echo "DEPLOY_OK"
 echo "Web root: $WEB_ROOT"
 echo "API data: $DATA_DIR/groups.json"
+echo "Application data: $DATA_DIR/applications.json"
 echo "PV data: $DATA_DIR/metrics.json"

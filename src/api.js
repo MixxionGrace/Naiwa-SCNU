@@ -3,6 +3,7 @@ export class ApiError extends Error {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.code = details.code || ''
     this.fields = details.fields || {}
   }
 }
@@ -48,6 +49,20 @@ export function getPublicGroups(options = {}) {
   })
 }
 
+export function checkGroupApplicationQq(qq, options = {}) {
+  const search = new URLSearchParams({ qq: String(qq).trim() })
+  return apiRequest(`/api/group-applications/check?${search}`, {
+    signal: options.signal,
+  })
+}
+
+export function createGroupApplication(application) {
+  return apiRequest('/api/group-applications', {
+    method: 'POST',
+    body: application,
+  })
+}
+
 export function getPageView(options = {}) {
   return apiRequest('/api/metrics/pv', { signal: options.signal })
 }
@@ -88,4 +103,26 @@ export function deleteAdminGroup(token, id) {
     method: 'DELETE',
     token,
   })
+}
+
+export function getAdminApplications(token, options = {}) {
+  return apiRequest(`/api/admin/applications?${createGroupQuery(options)}`, {
+    token,
+    signal: options.signal,
+  })
+}
+
+export function updateAdminApplication(token, id, application) {
+  return apiRequest(`/api/admin/applications/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    token,
+    body: application,
+  })
+}
+
+export function reviewAdminApplication(token, id, decision) {
+  return apiRequest(
+    `/api/admin/applications/${encodeURIComponent(id)}/${decision}`,
+    { method: 'POST', token },
+  )
 }

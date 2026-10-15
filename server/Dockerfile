@@ -15,6 +15,7 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3001 \
     DATA_FILE=/app/data/groups.json \
+    APPLICATIONS_FILE=/app/data/applications.json \
     METRICS_FILE=/app/data/metrics.json
 
 EXPOSE 3001

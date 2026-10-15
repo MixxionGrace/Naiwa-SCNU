@@ -1324,7 +1324,151 @@ footer p {
 }
 
 .promote-modal {
-  width: min(100%, 610px);
+  width: min(100%, 720px);
+}
+
+.promote-form {
+  display: grid;
+  gap: 15px;
+  margin-top: 23px;
+  padding: 19px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 19px;
+  background: rgba(1, 16, 50, 0.36);
+}
+
+.promote-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.promote-form label {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.promote-form__wide {
+  grid-column: 1 / -1;
+}
+
+.promote-form label > span {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.promote-form input,
+.promote-form textarea {
+  width: 100%;
+  min-height: 45px;
+  padding: 11px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  border-radius: 11px;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.promote-form textarea {
+  min-height: 86px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.promote-form input::placeholder,
+.promote-form textarea::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.promote-form input:focus,
+.promote-form textarea:focus {
+  border-color: rgba(255, 232, 106, 0.72);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 4px rgba(255, 232, 106, 0.08);
+}
+
+.promote-form label > em,
+.promote-form label > small {
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1.5;
+}
+
+.promote-form label > em {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.promote-form label > em.is-available {
+  color: #9bffc1;
+}
+
+.promote-form label > small {
+  color: #ffc0c0;
+}
+
+.promote-form__error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 125, 125, 0.28);
+  border-radius: 10px;
+  background: rgba(130, 24, 32, 0.18);
+  color: #ffc6c6;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.promote-form__submit {
+  min-height: 44px;
+  padding: 10px 19px;
+  border: 0;
+  border-radius: 999px;
+  background: #ffe86a;
+  color: #082d74;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 180ms ease, transform 180ms ease, opacity 180ms ease;
+}
+
+.promote-form__submit:hover {
+  background: #fff3a0;
+  transform: translateY(-1px);
+}
+
+.promote-form__submit:disabled {
+  cursor: wait;
+  opacity: 0.58;
+  transform: none;
+}
+
+.promote-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 0;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+}
+
+.promote-divider::before,
+.promote-divider::after {
+  height: 1px;
+  flex: 1;
+  background: rgba(255, 255, 255, 0.11);
+  content: '';
+}
+
+.promote-contact-copy {
+  margin: 15px 0 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+  line-height: 1.7;
 }
 
 .promote-contact {
@@ -1359,6 +1503,49 @@ footer p {
   color: rgba(255, 255, 255, 0.78);
   font-size: 12px;
   line-height: 1.7;
+}
+
+.promote-result-modal {
+  width: min(100%, 560px);
+}
+
+.promote-result {
+  min-height: 230px;
+  padding: 68px 12px 20px;
+  text-align: center;
+}
+
+.promote-result > span {
+  color: #ffe86a;
+  font: 700 10px/1 Inter, Arial, sans-serif;
+  letter-spacing: 0.2em;
+}
+
+.promote-result h2 {
+  margin: 12px 0 16px;
+  font-size: clamp(36px, 7vw, 54px);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.promote-result p {
+  max-width: 430px;
+  margin: 0 auto;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.promote-result--submitted h2 {
+  color: #a5ffc7;
+}
+
+.promote-result--approved h2 {
+  color: #ffe86a;
+}
+
+.promote-result__actions {
+  justify-content: center;
 }
 
 @keyframes modal-backdrop-in {
@@ -1650,6 +1837,18 @@ footer p {
 
   .modal-heading p {
     font-size: 13px;
+  }
+
+  .promote-form {
+    padding: 15px;
+  }
+
+  .promote-form__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .promote-form__wide {
+    grid-column: auto;
   }
 
   .sponsor-payment-grid {

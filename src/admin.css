@@ -132,6 +132,7 @@
 .admin-primary-button,
 .admin-secondary-button,
 .admin-danger-button,
+.admin-approve-button,
 .admin-create-button,
 .admin-logout-button {
   border: 0;
@@ -157,12 +158,14 @@
 .admin-create-button:hover,
 .admin-secondary-button:hover,
 .admin-danger-button:hover,
+.admin-approve-button:hover,
 .admin-logout-button:hover {
   transform: translateY(-2px);
 }
 
 .admin-primary-button:disabled,
-.admin-danger-button:disabled {
+.admin-danger-button:disabled,
+.admin-approve-button:disabled {
   cursor: wait;
   opacity: 0.56;
   transform: none;
@@ -204,6 +207,39 @@
   background: rgba(30, 129, 74, 0.2);
   color: #b9ffd3;
   font-size: 12px;
+}
+
+.admin-tabs {
+  display: inline-flex;
+  gap: 5px;
+  margin-top: 24px;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(3, 20, 61, 0.6);
+}
+
+.admin-tabs button {
+  min-height: 38px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.admin-tabs button:hover {
+  color: #fff;
+}
+
+.admin-tabs button.is-active {
+  background: #ffe86a;
+  color: #082d74;
+  box-shadow: 0 7px 22px rgba(0, 8, 35, 0.2);
 }
 
 .admin-toolbar {
@@ -309,10 +345,21 @@
   letter-spacing: 0.11em;
 }
 
-.admin-table-card th:nth-child(1) { width: 24%; }
-.admin-table-card th:nth-child(2) { width: 42%; }
-.admin-table-card th:nth-child(3) { width: 18%; }
-.admin-table-card th:nth-child(4) { width: 16%; }
+.admin-table-card--groups th:nth-child(1) { width: 24%; }
+.admin-table-card--groups th:nth-child(2) { width: 42%; }
+.admin-table-card--groups th:nth-child(3) { width: 18%; }
+.admin-table-card--groups th:nth-child(4) { width: 16%; }
+
+.admin-table-card--applications table {
+  min-width: 1060px;
+}
+
+.admin-table-card--applications th:nth-child(1) { width: 18%; }
+.admin-table-card--applications th:nth-child(2) { width: 24%; }
+.admin-table-card--applications th:nth-child(3) { width: 13%; }
+.admin-table-card--applications th:nth-child(4) { width: 13%; }
+.admin-table-card--applications th:nth-child(5) { width: 13%; }
+.admin-table-card--applications th:nth-child(6) { width: 19%; }
 
 .admin-table-card td {
   color: rgba(255, 255, 255, 0.78);
@@ -338,6 +385,16 @@
   letter-spacing: 0.04em;
 }
 
+.admin-table-card code.admin-applicant-qq {
+  color: #a7c7ff;
+}
+
+.admin-table-card time {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
 .admin-keywords {
   display: flex;
   flex-wrap: wrap;
@@ -355,6 +412,7 @@
 
 .admin-row-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 7px;
 }
 
@@ -379,6 +437,11 @@
 .admin-row-actions .is-danger:hover {
   border-color: rgba(255, 124, 124, 0.58);
   color: #ffb7b7;
+}
+
+.admin-row-actions .is-approve:hover {
+  border-color: rgba(118, 255, 174, 0.55);
+  color: #9bffc1;
 }
 
 .admin-table-state {
@@ -514,6 +577,11 @@
   color: #3d0611;
 }
 
+.admin-approve-button {
+  background: #94f7b8;
+  color: #06361d;
+}
+
 .delete-dialog {
   width: min(100%, 500px);
   text-align: center;
@@ -530,6 +598,12 @@
   background: rgba(255, 107, 107, 0.13);
   color: #ffabab;
   font: 800 25px/1 Inter, Arial, sans-serif;
+}
+
+.delete-dialog__badge.is-approve {
+  border-color: rgba(118, 255, 174, 0.5);
+  background: rgba(62, 178, 107, 0.16);
+  color: #a6ffc7;
 }
 
 .delete-dialog .admin-dialog__heading {
@@ -574,6 +648,10 @@
   .admin-table-card table {
     min-width: 760px;
   }
+
+  .admin-table-card--applications table {
+    min-width: 1060px;
+  }
 }
 
 @media (max-width: 560px) {
@@ -607,6 +685,13 @@
 
   .admin-dashboard__heading {
     clear: both;
+  }
+
+  .admin-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    border-radius: 16px;
   }
 
   .admin-search {

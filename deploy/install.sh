@@ -187,7 +187,9 @@ fi
 
 sudo install -d -m 0755 "$WEB_ROOT/assets"
 sudo cp -a "$BUNDLE_DIR/dist/assets/." "$WEB_ROOT/assets/"
-sudo cp "$BUNDLE_DIR/dist/index.html" "$WEB_ROOT/index.html.next"
+sudo find "$WEB_ROOT/assets" -type d -exec chmod 0755 {} +
+sudo find "$WEB_ROOT/assets" -type f -exec chmod 0644 {} +
+sudo install -m 0644 "$BUNDLE_DIR/dist/index.html" "$WEB_ROOT/index.html.next"
 sudo mv "$WEB_ROOT/index.html.next" "$WEB_ROOT/index.html"
 
 curl --max-time 10 --noproxy '*' -kfsS --resolve milk-frog.cn:443:127.0.0.1 \

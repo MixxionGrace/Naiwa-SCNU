@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ApiError,
   createAdminActivity,
@@ -122,14 +123,20 @@ function PlusIcon() {
 
 function AdminDialog({ titleId, className = '', onClose, children }) {
   useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [onClose])
 
-  return (
+  return createPortal(
     <div
       className="admin-dialog-backdrop"
       onMouseDown={(event) => {
@@ -152,7 +159,8 @@ function AdminDialog({ titleId, className = '', onClose, children }) {
         </button>
         {children}
       </section>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

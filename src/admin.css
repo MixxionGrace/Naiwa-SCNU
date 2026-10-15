@@ -603,11 +603,31 @@
   max-height: calc(100svh - 36px);
   padding: 29px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: rgba(255, 232, 106, 0.45) rgba(0, 8, 31, 0.32);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
   border: 1px solid rgba(255, 255, 255, 0.17);
   border-radius: 23px;
   background: linear-gradient(150deg, #0b327b, #06163f 76%);
   box-shadow: 0 35px 100px rgba(0, 5, 24, 0.6);
   animation: modal-card-in 240ms ease both;
+}
+
+.admin-dialog::-webkit-scrollbar {
+  width: 10px;
+}
+
+.admin-dialog::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(0, 8, 31, 0.32);
+}
+
+.admin-dialog::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 232, 106, 0.45);
+  background-clip: padding-box;
 }
 
 .activity-editor-dialog {

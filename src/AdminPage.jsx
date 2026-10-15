@@ -766,7 +766,7 @@ function ActivityEditor({
           ) : (
             <div className="admin-activity-image-empty">
               <strong>暂无活动图片</strong>
-              <span>添加后会展示在前台活动卡片中</span>
+              <span>添加后会展示在活动详情最下方</span>
             </div>
           )}
           <div className="admin-activity-image-actions">

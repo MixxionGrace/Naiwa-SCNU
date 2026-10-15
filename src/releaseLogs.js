@@ -1,5 +1,12 @@
 export const RELEASE_LOGS = [
   {
+    date: '2026-10-16',
+    type: 'IMPROVEMENT',
+    title: '活动卡片与详情体验优化',
+    description:
+      '活动卡片改为简洁摘要；点击卡片可查看完整内容与配图，图片会按原比例自适应并支持打开原图。',
+  },
+  {
     date: '2026-10-15',
     type: 'FEATURE',
     title: '活动卡片支持展示配图',

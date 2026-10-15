@@ -1249,13 +1249,103 @@ function FindGroupsPage({ onSearch, onPromote }) {
   )
 }
 
-function ActivityCard({ activity, onCopy, copied }) {
+function ActivityDetailModal({ activity, onClose, onCopy, copied }) {
+  const modeLabels = activity.modes.map((mode) =>
+    mode === 'online' ? '线上' : '线下',
+  )
+
+  return (
+    <ModalShell
+      labelledBy="activity-detail-title"
+      describedBy="activity-detail-content"
+      className="activity-detail-modal"
+      onClose={onClose}
+    >
+      <div className="activity-detail-modal__topline">
+        <div>
+          {activity.pinned && <span className="activity-detail-modal__pin">置顶</span>}
+          {modeLabels.map((label) => <span key={label}>{label}</span>)}
+        </div>
+        <span>SCNU ACTIVITY</span>
+      </div>
+
+      <div className="modal-heading activity-detail-modal__heading">
+        <span>ACTIVITY DETAIL</span>
+        <h2 id="activity-detail-title">{activity.title}</h2>
+      </div>
+
+      <section className="activity-detail-modal__content">
+        <span>活动内容</span>
+        <p id="activity-detail-content">{activity.content}</p>
+      </section>
+
+      <div className="activity-detail-modal__times">
+        <strong>活动时间</strong>
+        <ul>
+          {activity.times.map((time) => (
+            <li key={time}>{formatActivityTime(time)}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="activity-detail-modal__group">
+        <div>
+          <span>发起同好群</span>
+          <strong>{activity.groupName}</strong>
+          <small>QQ 群号 {activity.groupQq}</small>
+        </div>
+        <button
+          type="button"
+          onClick={() => onCopy(activity.groupQq, `activity-${activity.id}`)}
+          aria-label={`复制 QQ 群号 ${activity.groupQq}`}
+        >
+          <CopyIcon />
+          {copied ? '已复制' : '复制群号'}
+        </button>
+      </div>
+
+      {activity.imageUrl && (
+        <section className="activity-detail-modal__image-section">
+          <div className="activity-detail-modal__image-heading">
+            <PictureIcon />
+            <div>
+              <strong>活动图片</strong>
+              <span>点击图片查看原图</span>
+            </div>
+          </div>
+          <a
+            className="activity-detail-modal__image-link"
+            href={activity.imageUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`打开${activity.title}活动原图`}
+          >
+            <img
+              className="activity-detail-modal__image"
+              src={activity.imageUrl}
+              alt={`${activity.title}活动图片`}
+            />
+          </a>
+        </section>
+      )}
+    </ModalShell>
+  )
+}
+
+function ActivityCard({ activity, onOpen }) {
   const modeLabels = activity.modes.map((mode) =>
     mode === 'online' ? '线上' : '线下',
   )
 
   return (
     <article className={`activity-card${activity.pinned ? ' is-pinned' : ''}`}>
+      <button
+        className="activity-card__open"
+        type="button"
+        onClick={() => onOpen(activity)}
+        aria-label={`查看活动详情：${activity.title}`}
+      />
+
       <div className="activity-card__topline">
         <div>
           {activity.pinned && <span className="activity-card__pin">置顶</span>}
@@ -1264,17 +1354,7 @@ function ActivityCard({ activity, onCopy, copied }) {
         <span>SCNU ACTIVITY</span>
       </div>
 
-      {activity.imageUrl && (
-        <img
-          className="activity-card__image"
-          src={activity.imageUrl}
-          alt={`${activity.title}活动图片`}
-          loading="lazy"
-        />
-      )}
-
       <h3>{activity.title}</h3>
-      <p className="activity-card__content">{activity.content}</p>
 
       <div className="activity-card__times">
         <strong>活动时间</strong>
@@ -1291,20 +1371,16 @@ function ActivityCard({ activity, onCopy, copied }) {
           <strong>{activity.groupName}</strong>
           <small>QQ 群号 {activity.groupQq}</small>
         </div>
-        <button
-          type="button"
-          onClick={() => onCopy(activity.groupQq, `activity-${activity.id}`)}
-          aria-label={`复制 QQ 群号 ${activity.groupQq}`}
-        >
-          <CopyIcon />
-          {copied ? '已复制' : '复制群号'}
-        </button>
+        <span className="activity-card__hint">
+          查看详情
+          <ArrowIcon />
+        </span>
       </div>
     </article>
   )
 }
 
-function EventsPage({ onSubmitActivity, onCopy, copiedGroupId }) {
+function EventsPage({ onSubmitActivity, onOpenActivity }) {
   const [searchInput, setSearchInput] = useState('')
   const [query, setQuery] = useState('')
   const [activityPage, setActivityPage] = useState(1)
@@ -1407,8 +1483,7 @@ function EventsPage({ onSubmitActivity, onCopy, copiedGroupId }) {
             <ActivityCard
               key={activity.id}
               activity={activity}
-              onCopy={onCopy}
-              copied={copiedGroupId === `activity-${activity.id}`}
+              onOpen={onOpenActivity}
             />
           ))}
         </div>
@@ -1578,6 +1653,7 @@ function getNextStartupModal(current) {
 export default function App() {
   const [route, setRoute] = useState(getInitialRoute)
   const [copiedGroupId, setCopiedGroupId] = useState('')
+  const [selectedActivity, setSelectedActivity] = useState(null)
   const [pvCount, setPvCount] = useState(null)
   const pvTrackedRef = useRef(false)
   const [activeModal, setActiveModal] = useState(() =>
@@ -1631,12 +1707,13 @@ export default function App() {
   }, [route.page])
 
   useEffect(() => {
-    if (!activeModal) return undefined
+    if (!activeModal && !selectedActivity) return undefined
 
     const previousOverflow = document.body.style.overflow
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        if (activeModal === 'release-log') closeReleaseLog()
+        if (selectedActivity) setSelectedActivity(null)
+        else if (activeModal === 'release-log') closeReleaseLog()
         else setActiveModal(getNextStartupModal)
       }
     }
@@ -1648,7 +1725,7 @@ export default function App() {
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [activeModal])
+  }, [activeModal, selectedActivity])
 
   const updateRoute = (page, query = '') => {
     const nextHash =
@@ -1658,6 +1735,7 @@ export default function App() {
 
     window.history.pushState(null, '', nextHash)
     setRoute({ page, query })
+    setSelectedActivity(null)
     if (page === ADMIN_PAGE) setActiveModal('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -1783,8 +1861,7 @@ export default function App() {
           {route.page === 'events' && (
             <EventsPage
               onSubmitActivity={() => setActiveModal('activity-submit')}
-              onCopy={handleCopy}
-              copiedGroupId={copiedGroupId}
+              onOpenActivity={setSelectedActivity}
             />
           )}
           {route.page === ADMIN_PAGE && <AdminPage />}
@@ -1825,6 +1902,14 @@ export default function App() {
       )}
       {activeModal === 'activity-submit' && (
         <ActivitySubmissionModal onClose={closeActiveModal} />
+      )}
+      {selectedActivity && (
+        <ActivityDetailModal
+          activity={selectedActivity}
+          onClose={() => setSelectedActivity(null)}
+          onCopy={handleCopy}
+          copied={copiedGroupId === `activity-${selectedActivity.id}`}
+        />
       )}
       {activeModal === 'release-log' && (
         <ReleaseLogModal onClose={closeReleaseLog} />

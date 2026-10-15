@@ -573,6 +573,17 @@ export function createApp({
     })
   })
 
+  router.post('/api/admin/activities', requireAdmin, async (ctx) => {
+    const input = validateActivityPayload(ctx.request.body, {
+      includePinned: true,
+      includeImage: true,
+    })
+    const activity = await activityStore.create(input)
+
+    ctx.status = 201
+    ctx.body = { item: activity }
+  })
+
   router.post('/api/admin/activity-images', requireAdmin, async (ctx) => {
     const contentType = ctx.get('content-type').split(';')[0].toLowerCase()
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {

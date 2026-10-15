@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   ApiError,
+  createAdminActivity,
   createAdminGroup,
   deleteAdminActivity,
   deleteAdminActivityImage,
@@ -572,19 +573,22 @@ function ActivityEditor({
   onSaved,
   onUnauthorized,
 }) {
-  const [title, setTitle] = useState(activity.title)
-  const [content, setContent] = useState(activity.content)
-  const [groupName, setGroupName] = useState(activity.groupName)
-  const [groupQq, setGroupQq] = useState(activity.groupQq)
-  const [applicantQq, setApplicantQq] = useState(activity.applicantQq || '')
+  const isCreating = !application && activity === null
+  const [title, setTitle] = useState(activity?.title || '')
+  const [content, setContent] = useState(activity?.content || '')
+  const [groupName, setGroupName] = useState(activity?.groupName || '')
+  const [groupQq, setGroupQq] = useState(activity?.groupQq || '')
+  const [applicantQq, setApplicantQq] = useState(activity?.applicantQq || '')
   const [times, setTimes] = useState(
-    activity.times.map(toLocalDateTimeValue).filter(Boolean),
+    activity?.times?.length
+      ? activity.times.map(toLocalDateTimeValue).filter(Boolean)
+      : [''],
   )
-  const [modes, setModes] = useState(activity.modes)
-  const [pinned, setPinned] = useState(Boolean(activity.pinned))
-  const [imageUrl, setImageUrl] = useState(activity.imageUrl || '')
+  const [modes, setModes] = useState(activity?.modes || [])
+  const [pinned, setPinned] = useState(Boolean(activity?.pinned))
+  const [imageUrl, setImageUrl] = useState(activity?.imageUrl || '')
   const [imageFile, setImageFile] = useState(null)
-  const [imagePreviewUrl, setImagePreviewUrl] = useState(activity.imageUrl || '')
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(activity?.imageUrl || '')
   const [imageProcessing, setImageProcessing] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
@@ -667,10 +671,18 @@ function ActivityEditor({
 
       if (application) {
         await updateAdminActivityApplication(token, activity.id, payload)
+      } else if (isCreating) {
+        await createAdminActivity(token, payload)
       } else {
         await updateAdminActivity(token, activity.id, payload)
       }
-      onSaved(application ? '活动申请已更新。' : '活动资料已更新。')
+      onSaved(
+        application
+          ? '活动申请已更新。'
+          : isCreating
+            ? '活动已创建并发布到前台。'
+            : '活动资料已更新。',
+      )
     } catch (requestError) {
       if (uploadedImageUrl) {
         deleteAdminActivityImage(token, uploadedImageUrl).catch(() => undefined)
@@ -693,9 +705,19 @@ function ActivityEditor({
       onClose={onClose}
     >
       <div className="admin-dialog__heading">
-        <span>{application ? 'EDIT ACTIVITY APPLICATION' : 'EDIT ACTIVITY'}</span>
+        <span>
+          {application
+            ? 'EDIT ACTIVITY APPLICATION'
+            : isCreating
+              ? 'CREATE ACTIVITY'
+              : 'EDIT ACTIVITY'}
+        </span>
         <h3 id="activity-editor-title">
-          {application ? '编辑活动申请' : '编辑公开活动'}
+          {application
+            ? '编辑活动申请'
+            : isCreating
+              ? '新增公开活动'
+              : '编辑公开活动'}
         </h3>
       </div>
 
@@ -846,7 +868,11 @@ function ActivityEditor({
             className="admin-primary-button"
             disabled={submitting || imageProcessing}
           >
-            {imageProcessing ? '正在处理图片…' : submitting ? '正在保存…' : '保存修改'}
+            {imageProcessing
+              ? '正在处理图片…'
+              : submitting
+                ? isCreating ? '正在创建…' : '正在保存…'
+                : isCreating ? '创建并发布' : '保存修改'}
           </button>
         </div>
       </form>
@@ -1025,7 +1051,7 @@ function AdminDashboard({ token, onUnauthorized }) {
   const [deletingGroup, setDeletingGroup] = useState(null)
   const [editorApplication, setEditorApplication] = useState(null)
   const [reviewingApplication, setReviewingApplication] = useState(null)
-  const [editorActivity, setEditorActivity] = useState(null)
+  const [editorActivity, setEditorActivity] = useState(undefined)
   const [deletingActivity, setDeletingActivity] = useState(null)
   const [editorActivityApplication, setEditorActivityApplication] = useState(null)
   const [reviewingActivityApplication, setReviewingActivityApplication] = useState(null)
@@ -1083,7 +1109,7 @@ function AdminDashboard({ token, onUnauthorized }) {
     setDeletingGroup(null)
     setEditorApplication(null)
     setReviewingApplication(null)
-    setEditorActivity(null)
+    setEditorActivity(undefined)
     setDeletingActivity(null)
     setEditorActivityApplication(null)
     setReviewingActivityApplication(null)
@@ -1183,6 +1209,12 @@ function AdminDashboard({ token, onUnauthorized }) {
           <button className="admin-create-button" type="button" onClick={() => setEditorGroup(null)}>
             <PlusIcon />
             新增同好群
+          </button>
+        )}
+        {isActivitiesTab && (
+          <button className="admin-create-button" type="button" onClick={() => setEditorActivity(null)}>
+            <PlusIcon />
+            新增活动
           </button>
         )}
       </div>
@@ -1334,8 +1366,8 @@ function AdminDashboard({ token, onUnauthorized }) {
       {reviewingApplication && (
         <ReviewConfirmation token={token} application={reviewingApplication.application} decision={reviewingApplication.decision} onClose={() => setReviewingApplication(null)} onReviewed={refresh} onUnauthorized={onUnauthorized} />
       )}
-      {editorActivity && (
-        <ActivityEditor token={token} activity={editorActivity} onClose={() => setEditorActivity(null)} onSaved={refresh} onUnauthorized={onUnauthorized} />
+      {editorActivity !== undefined && (
+        <ActivityEditor token={token} activity={editorActivity} onClose={() => setEditorActivity(undefined)} onSaved={refresh} onUnauthorized={onUnauthorized} />
       )}
       {deletingActivity && (
         <ActivityDeleteConfirmation token={token} activity={deletingActivity} onClose={() => setDeletingActivity(null)} onDeleted={() => refresh('活动已删除。')} onUnauthorized={onUnauthorized} />

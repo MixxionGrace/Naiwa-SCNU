@@ -155,6 +155,20 @@ async function run() {
     assert.equal(login.status, 200)
     const token = login.body.token
 
+    const unauthorizedAdminActivity = await request(
+      origin,
+      '/api/admin/activities',
+      {
+        method: 'POST',
+        body: {
+          ...createPayload('Unauthorized Admin Activity', '123450099'),
+          pinned: false,
+          imageUrl: '',
+        },
+      },
+    )
+    assert.equal(unauthorizedAdminActivity.status, 401)
+
     const imageBytes = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
       'base64',
@@ -258,6 +272,25 @@ async function run() {
     const rejectedIsHidden = await request(origin, '/api/activities?q=Rejected')
     assert.equal(rejectedIsHidden.body.total, 0)
 
+    const adminCreated = await request(origin, '/api/admin/activities', {
+      method: 'POST',
+      token,
+      body: {
+        ...createPayload('Admin Created Activity', '123450004'),
+        pinned: false,
+        imageUrl: '',
+      },
+    })
+    assert.equal(adminCreated.status, 201)
+    assert.equal(adminCreated.body.item.title, 'Admin Created Activity')
+    assert.equal(adminCreated.body.item.pinned, false)
+    assert.equal('applicantQq' in adminCreated.body.item, false)
+
+    const adminCreatedIsPublic = await request(origin, '/api/activities?q=Admin')
+    assert.equal(adminCreatedIsPublic.status, 200)
+    assert.equal(adminCreatedIsPublic.body.total, 1)
+    assert.equal(adminCreatedIsPublic.body.items[0].id, adminCreated.body.item.id)
+
     for (const activity of reordered.body.items) {
       const removed = await request(origin, `/api/admin/activities/${activity.id}`, {
         method: 'DELETE',
@@ -266,11 +299,18 @@ async function run() {
       assert.equal(removed.status, 200)
     }
 
+    const removedAdminCreated = await request(
+      origin,
+      `/api/admin/activities/${adminCreated.body.item.id}`,
+      { method: 'DELETE', token },
+    )
+    assert.equal(removedAdminCreated.status, 200)
+
     const removedImage = await requestBuffer(origin, uploadedImage.body.item.url)
     assert.equal(removedImage.status, 404)
 
     console.log(
-      'Activity flow test passed: submit, admin image, edit, approve, pin order, privacy, reject, delete.',
+      'Activity flow test passed: submit, admin create/image/edit, approve, pin order, privacy, reject, delete.',
     )
   } finally {
     await new Promise((resolve, reject) =>

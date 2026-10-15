@@ -147,6 +147,14 @@ export function getAdminActivities(token, options = {}) {
   })
 }
 
+export function createAdminActivity(token, activity) {
+  return apiRequest('/api/admin/activities', {
+    method: 'POST',
+    token,
+    body: activity,
+  })
+}
+
 export async function uploadAdminActivityImage(token, image) {
   const response = await fetch('/api/admin/activity-images', {
     method: 'POST',

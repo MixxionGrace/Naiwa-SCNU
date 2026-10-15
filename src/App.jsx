@@ -344,9 +344,16 @@ function SponsorModal({ onClose }) {
           </a>
           好不好嘛~
         </p>
-        <p className="sponsor-thanks">
-          感谢 芥*o、[*]、*汗、C*R 的打赏赞助！祝你们身体健康，万事如意，绩点拉满，好运不断 🙇
-        </p>
+        <div className="sponsor-thanks">
+          <p>感谢以下几位的打赏赞助：</p>
+          <ul aria-label="赞助者名单">
+            <li>芥*o</li>
+            <li>[*]</li>
+            <li>*汗</li>
+            <li>C*R</li>
+          </ul>
+          <p>祝你们身体健康，万事如意，绩点拉满，好运不断 🙇</p>
+        </div>
       </div>
 
       <div className="sponsor-payment-grid">

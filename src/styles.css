@@ -1881,6 +1881,7 @@ footer p {
 
 .modal-heading .sponsor-thanks {
   max-width: none;
+  margin: 17px 0 0;
   padding: 11px 14px;
   border: 1px solid rgba(255, 232, 106, 0.22);
   border-radius: 12px;
@@ -1888,6 +1889,26 @@ footer p {
   color: rgba(255, 255, 255, 0.88);
   font-size: 13px;
   line-height: 1.7;
+}
+
+.modal-heading .sponsor-thanks p {
+  margin: 0;
+  color: inherit;
+  font: inherit;
+}
+
+.sponsor-thanks ul {
+  display: grid;
+  gap: 2px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sponsor-thanks li {
+  color: #ffe86a;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .sponsor-payment-grid {

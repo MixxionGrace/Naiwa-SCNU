@@ -10,12 +10,14 @@ import {
   getAdminActivities,
   getAdminActivityApplications,
   getAdminApplications,
+  getAdminFeedbacks,
   getAdminGroups,
   loginAdmin,
   logoutAdmin,
   reviewAdminActivityApplication,
   reviewAdminApplication,
   setAdminActivityPinned,
+  setAdminFeedbackStatus,
   uploadAdminActivityImage,
   updateAdminActivity,
   updateAdminActivityApplication,
@@ -190,7 +192,7 @@ function AdminLogin({ message, onAuthenticated }) {
       <div className="admin-login__intro">
         <span>SCNU GROUP CONTROL</span>
         <h2 id="admin-login-title">管理端登录</h2>
-        <p>登录后可维护同好群与活动资料，并审核前台提交的申请。</p>
+        <p>登录后可维护同好群与活动资料、审核申请，并查看访客反馈。</p>
       </div>
 
       <form className="admin-login__form" onSubmit={handleSubmit}>
@@ -1062,7 +1064,14 @@ const ADMIN_TABS = [
   { id: 'applications', label: '宣群审核' },
   { id: 'activities', label: '公开活动' },
   { id: 'activity-applications', label: '活动审核' },
+  { id: 'feedbacks', label: '意见反馈' },
 ]
+
+const FEEDBACK_CATEGORY_LABELS = {
+  feature: '功能建议',
+  issue: '问题反馈',
+  other: '其他反馈',
+}
 
 function ActivityModeTags({ modes }) {
   return (
@@ -1108,14 +1117,18 @@ function AdminDashboard({ token, onUnauthorized }) {
   const [deletingActivity, setDeletingActivity] = useState(null)
   const [editorActivityApplication, setEditorActivityApplication] = useState(null)
   const [reviewingActivityApplication, setReviewingActivityApplication] = useState(null)
+  const [updatingFeedbackId, setUpdatingFeedbackId] = useState('')
   const [notice, setNotice] = useState('')
 
   const isGroupApplicationsTab = activeTab === 'applications'
   const isActivitiesTab = activeTab === 'activities'
   const isActivityApplicationsTab = activeTab === 'activity-applications'
+  const isFeedbacksTab = activeTab === 'feedbacks'
   const isGroupsTab = activeTab === 'groups'
   const isReviewTab = isGroupApplicationsTab || isActivityApplicationsTab
+  const isSecondaryStatusView = (isReviewTab || isFeedbacksTab) && reviewView === 'history'
   const isHistoryView = isReviewTab && reviewView === 'history'
+  const isProcessedFeedbackView = isFeedbacksTab && reviewView === 'history'
 
   useEffect(() => {
     const controller = new AbortController()
@@ -1124,6 +1137,7 @@ function AdminDashboard({ token, onUnauthorized }) {
       applications: getAdminApplications,
       activities: getAdminActivities,
       'activity-applications': getAdminActivityApplications,
+      feedbacks: getAdminFeedbacks,
     }
     setLoading(true)
     setError('')
@@ -1132,9 +1146,11 @@ function AdminDashboard({ token, onUnauthorized }) {
       query,
       page,
       pageSize: ADMIN_PAGE_SIZE,
-      status: isReviewTab
-        ? isHistoryView ? 'reviewed' : 'pending'
-        : '',
+      status: isFeedbacksTab
+        ? isProcessedFeedbackView ? 'processed' : 'pending'
+        : isReviewTab
+          ? isHistoryView ? 'reviewed' : 'pending'
+          : '',
       signal: controller.signal,
     })
       .then((result) => {
@@ -1154,7 +1170,18 @@ function AdminDashboard({ token, onUnauthorized }) {
       .finally(() => setLoading(false))
 
     return () => controller.abort()
-  }, [activeTab, token, query, page, refreshKey, onUnauthorized, isReviewTab, isHistoryView])
+  }, [
+    activeTab,
+    token,
+    query,
+    page,
+    refreshKey,
+    onUnauthorized,
+    isReviewTab,
+    isHistoryView,
+    isFeedbacksTab,
+    isProcessedFeedbackView,
+  ])
 
   useEffect(() => {
     if (!notice) return undefined
@@ -1171,6 +1198,7 @@ function AdminDashboard({ token, onUnauthorized }) {
     setDeletingActivity(null)
     setEditorActivityApplication(null)
     setReviewingActivityApplication(null)
+    setUpdatingFeedbackId('')
     setNotice(message)
     setRefreshKey((value) => value + 1)
   }
@@ -1217,6 +1245,22 @@ function AdminDashboard({ token, onUnauthorized }) {
     }
   }
 
+  const handleFeedbackStatus = async (feedback, status) => {
+    setUpdatingFeedbackId(feedback.id)
+    try {
+      await setAdminFeedbackStatus(token, feedback.id, status)
+      refresh(status === 'processed' ? '反馈已标记为已处理。' : '反馈已恢复为待处理。')
+    } catch (requestError) {
+      if (requestError.status === 401) {
+        onUnauthorized()
+        return
+      }
+      setNotice(requestError.message)
+    } finally {
+      setUpdatingFeedbackId('')
+    }
+  }
+
   const tabCopy = {
     groups: `当前共收录 ${total} 个群，所有修改会同步到前台查询。`,
     applications: isHistoryView
@@ -1226,26 +1270,30 @@ function AdminDashboard({ token, onUnauthorized }) {
     'activity-applications': isHistoryView
       ? `共找到 ${total} 条活动审核历史。`
       : `当前有 ${total} 条待审核活动申请。通过后才会出现在前台。`,
+    feedbacks: isProcessedFeedbackView
+      ? `共找到 ${total} 条已处理反馈。`
+      : `当前有 ${total} 条待处理意见反馈。`,
   }
   const searchPlaceholders = {
     groups: '搜索群名、关键词或 QQ 群号',
     applications: '搜索群名、游戏、群号或申请人 QQ',
     activities: '搜索活动标题、内容、群名或群号',
     'activity-applications': '搜索活动、群聊或申请人 QQ',
+    feedbacks: '搜索反馈内容、类型或联系 QQ',
   }
-  const columnCount = isGroupsTab ? 4 : 6
+  const columnCount = isGroupsTab ? 4 : isFeedbacksTab ? 5 : 6
 
   return (
     <section className="admin-dashboard" aria-labelledby="admin-dashboard-title">
       <div className="admin-dashboard__heading">
         <div>
-          <span>GROUP &amp; ACTIVITY / CONTROL PANEL</span>
-          <h2 id="admin-dashboard-title">同好群与活动管理</h2>
+          <span>GROUP, ACTIVITY &amp; FEEDBACK / CONTROL PANEL</span>
+          <h2 id="admin-dashboard-title">同好群、活动与反馈管理</h2>
           <p>{tabCopy[activeTab]}</p>
         </div>
       </div>
 
-      <div className="admin-tabs admin-tabs--four" role="tablist" aria-label="管理内容">
+      <div className="admin-tabs admin-tabs--five" role="tablist" aria-label="管理内容">
         {ADMIN_TABS.map((tab) => (
           <button
             key={tab.id}
@@ -1260,25 +1308,35 @@ function AdminDashboard({ token, onUnauthorized }) {
         ))}
       </div>
 
-      {isReviewTab && (
-        <div className="admin-review-filter" role="tablist" aria-label={isGroupApplicationsTab ? '宣群申请状态' : '活动申请状态'}>
+      {(isReviewTab || isFeedbacksTab) && (
+        <div
+          className="admin-review-filter"
+          role="tablist"
+          aria-label={
+            isFeedbacksTab
+              ? '反馈处理状态'
+              : isGroupApplicationsTab
+                ? '宣群申请状态'
+                : '活动申请状态'
+          }
+        >
           <button
             type="button"
             role="tab"
-            aria-selected={!isHistoryView}
-            className={!isHistoryView ? 'is-active' : ''}
+            aria-selected={!isSecondaryStatusView}
+            className={!isSecondaryStatusView ? 'is-active' : ''}
             onClick={() => selectReviewView('pending')}
           >
-            待审核
+            {isFeedbacksTab ? '待处理' : '待审核'}
           </button>
           <button
             type="button"
             role="tab"
-            aria-selected={isHistoryView}
-            className={isHistoryView ? 'is-active' : ''}
+            aria-selected={isSecondaryStatusView}
+            className={isSecondaryStatusView ? 'is-active' : ''}
             onClick={() => selectReviewView('history')}
           >
-            审核 / 申请历史
+            {isFeedbacksTab ? '已处理' : '审核 / 申请历史'}
           </button>
         </div>
       )}
@@ -1335,6 +1393,14 @@ function AdminDashboard({ token, onUnauthorized }) {
                   <th scope="col">提交时间</th>
                   <th scope="col">{isHistoryView ? '审核结果' : '操作'}</th>
                 </tr>
+              ) : isFeedbacksTab ? (
+                <tr>
+                  <th scope="col">类型</th>
+                  <th scope="col">反馈内容</th>
+                  <th scope="col">联系 QQ</th>
+                  <th scope="col">提交时间</th>
+                  <th scope="col">{isProcessedFeedbackView ? '处理记录' : '操作'}</th>
+                </tr>
               ) : (
                 <tr>
                   <th scope="col">{isActivitiesTab ? '置顶' : '标题'}</th>
@@ -1390,6 +1456,53 @@ function AdminDashboard({ token, onUnauthorized }) {
                           <button className="is-danger" type="button" onClick={() => setReviewingApplication({ application, decision: 'reject' })}>拒绝</button>
                         </div>
                       )}
+                    </td>
+                  </tr>
+                ))
+              ) : isFeedbacksTab ? (
+                items.map((feedback) => (
+                  <tr key={feedback.id}>
+                    <td data-label="类型">
+                      <span className={`admin-feedback-category admin-feedback-category--${feedback.category}`}>
+                        {FEEDBACK_CATEGORY_LABELS[feedback.category] || '其他反馈'}
+                      </span>
+                    </td>
+                    <td data-label="反馈内容">
+                      <p className="admin-feedback-content">{feedback.content}</p>
+                    </td>
+                    <td data-label="联系 QQ">
+                      {feedback.contactQq ? (
+                        <code className="admin-applicant-qq">{feedback.contactQq}</code>
+                      ) : (
+                        <span className="admin-feedback-empty">未填写</span>
+                      )}
+                    </td>
+                    <td data-label="提交时间">
+                      <time dateTime={feedback.createdAt}>{formatSubmittedAt(feedback.createdAt)}</time>
+                    </td>
+                    <td data-label={isProcessedFeedbackView ? '处理记录' : '操作'}>
+                      {isProcessedFeedbackView && (
+                        <time className="admin-feedback-processed-at" dateTime={feedback.processedAt || undefined}>
+                          {formatSubmittedAt(feedback.processedAt)} 已处理
+                        </time>
+                      )}
+                      <div className="admin-row-actions admin-row-actions--feedback">
+                        <button
+                          type="button"
+                          className={isProcessedFeedbackView ? 'is-unpin' : 'is-approve'}
+                          onClick={() => handleFeedbackStatus(
+                            feedback,
+                            isProcessedFeedbackView ? 'pending' : 'processed',
+                          )}
+                          disabled={updatingFeedbackId === feedback.id}
+                        >
+                          {updatingFeedbackId === feedback.id
+                            ? '处理中…'
+                            : isProcessedFeedbackView
+                              ? '恢复待处理'
+                              : '标记已处理'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

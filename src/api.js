@@ -77,6 +77,13 @@ export function createActivityApplication(application) {
   })
 }
 
+export function createFeedback(feedback) {
+  return apiRequest('/api/feedbacks', {
+    method: 'POST',
+    body: feedback,
+  })
+}
+
 export function getPageView(options = {}) {
   return apiRequest('/api/metrics/pv', { signal: options.signal })
 }
@@ -240,4 +247,19 @@ export function reviewAdminActivityApplication(
       body: decision === 'approve' ? { pinned: Boolean(options.pinned) } : undefined,
     },
   )
+}
+
+export function getAdminFeedbacks(token, options = {}) {
+  return apiRequest(`/api/admin/feedbacks?${createGroupQuery(options)}`, {
+    token,
+    signal: options.signal,
+  })
+}
+
+export function setAdminFeedbackStatus(token, id, status) {
+  return apiRequest(`/api/admin/feedbacks/${encodeURIComponent(id)}/status`, {
+    method: 'POST',
+    token,
+    body: { status },
+  })
 }

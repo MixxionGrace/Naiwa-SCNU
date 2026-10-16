@@ -1,6 +1,13 @@
 export const RELEASE_LOGS = [
   {
     date: '2026-10-16',
+    type: 'FEATURE',
+    title: '意见反馈入口上线',
+    description:
+      '右上角新增意见反馈入口，想要的新功能或遇到的问题都可以直接提交给站长。',
+  },
+  {
+    date: '2026-10-16',
     type: 'IMPROVEMENT',
     title: '活动卡片与详情体验优化',
     description:

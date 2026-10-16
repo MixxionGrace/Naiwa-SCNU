@@ -4,6 +4,7 @@ import {
   ApiError,
   checkGroupApplicationQq,
   createActivityApplication,
+  createFeedback,
   createGroupApplication,
   getPageView,
   getPublicActivities,
@@ -117,6 +118,15 @@ function HistoryIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
       <path d="M3 3v5h5M12 7v5l3 2" />
+    </svg>
+  )
+}
+
+function FeedbackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 5.5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-4.5 3v-3H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z" />
+      <path d="M7.5 9.5h9M7.5 13.5h5.5" />
     </svg>
   )
 }
@@ -369,6 +379,157 @@ function SponsorModal({ onClose }) {
       <div className="modal-actions">
         <button type="button" onClick={onClose}>谢谢支持</button>
       </div>
+    </ModalShell>
+  )
+}
+
+const FEEDBACK_CATEGORIES = [
+  { id: 'feature', label: '功能建议', copy: '想要的新功能' },
+  { id: 'issue', label: '问题反馈', copy: '遇到的问题' },
+  { id: 'other', label: '其他', copy: '想对站长说的话' },
+]
+
+function validateFeedbackFields({ category, content, contactQq }) {
+  const errors = {}
+  if (!FEEDBACK_CATEGORIES.some((item) => item.id === category)) {
+    errors.category = '请选择反馈类型。'
+  }
+  if (content.trim().length < 2 || content.trim().length > 1000) {
+    errors.content = '反馈内容需为 2–1000 个字符。'
+  }
+  if (contactQq.trim() && !/^\d{5,12}$/.test(contactQq.replace(/\s+/g, ''))) {
+    errors.contactQq = '联系 QQ 应为 5–12 位数字，或留空。'
+  }
+  return errors
+}
+
+function FeedbackModal({ onClose }) {
+  const [form, setForm] = useState({
+    category: 'feature',
+    content: '',
+    contactQq: '',
+  })
+  const [fieldErrors, setFieldErrors] = useState({})
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+
+  const updateField = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }))
+    setFieldErrors((current) => ({ ...current, [field]: '' }))
+    setError('')
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    const errors = validateFeedbackFields(form)
+    setFieldErrors(errors)
+    setError('')
+    if (Object.keys(errors).length) return
+
+    setSubmitting(true)
+    try {
+      await createFeedback(form)
+      setSubmitted(true)
+    } catch (requestError) {
+      setError(requestError.message)
+      if (requestError instanceof ApiError) setFieldErrors(requestError.fields)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <ModalShell
+        labelledBy="feedback-success-title"
+        describedBy="feedback-success-copy"
+        className="feedback-modal feedback-success-modal"
+        onClose={onClose}
+      >
+        <div className="feedback-success">
+          <span>FEEDBACK RECEIVED</span>
+          <h2 id="feedback-success-title">反馈收到啦</h2>
+          <p id="feedback-success-copy">
+            站长会在后台看到这条反馈。感谢你一起把小站变得更好！
+          </p>
+        </div>
+        <div className="modal-actions">
+          <button type="button" onClick={onClose}>好耶</button>
+        </div>
+      </ModalShell>
+    )
+  }
+
+  return (
+    <ModalShell
+      labelledBy="feedback-modal-title"
+      describedBy="feedback-modal-copy"
+      className="feedback-modal"
+      onClose={onClose}
+    >
+      <div className="modal-heading">
+        <span>TELL THE HOST</span>
+        <h2 id="feedback-modal-title">意见反馈</h2>
+        <p id="feedback-modal-copy">
+          想要什么新功能，或者遇到了什么问题，都可以告诉站长。
+        </p>
+      </div>
+
+      <form className="promote-form feedback-form" onSubmit={handleSubmit} noValidate>
+        <fieldset className="feedback-category-fieldset">
+          <legend>反馈类型</legend>
+          <div className="feedback-category-options">
+            {FEEDBACK_CATEGORIES.map((item) => (
+              <label key={item.id} className={form.category === item.id ? 'is-selected' : ''}>
+                <input
+                  type="radio"
+                  name="feedback-category"
+                  value={item.id}
+                  checked={form.category === item.id}
+                  onChange={(event) => updateField('category', event.target.value)}
+                />
+                <span>{item.label}</span>
+                <small>{item.copy}</small>
+              </label>
+            ))}
+          </div>
+          {fieldErrors.category && <small className="feedback-field-error">{fieldErrors.category}</small>}
+        </fieldset>
+
+        <label>
+          <span>反馈内容</span>
+          <textarea
+            value={form.content}
+            onChange={(event) => updateField('content', event.target.value)}
+            placeholder="请描述你想要的功能或遇到的问题，越具体越容易被解决～"
+            rows="7"
+            maxLength="1000"
+            autoFocus
+            required
+          />
+          <em>{form.content.length} / 1000</em>
+          {fieldErrors.content && <small>{fieldErrors.content}</small>}
+        </label>
+
+        <label>
+          <span>联系 QQ（选填）</span>
+          <input
+            value={form.contactQq}
+            onChange={(event) => updateField('contactQq', event.target.value)}
+            inputMode="numeric"
+            placeholder="方便站长进一步联系你，不会公开"
+            maxLength="12"
+          />
+          {fieldErrors.contactQq && <small>{fieldErrors.contactQq}</small>}
+        </label>
+
+        {error && <p className="promote-form__error" role="alert">{error}</p>}
+
+        <button className="promote-form__submit" type="submit" disabled={submitting}>
+          {submitting ? '正在提交…' : '提交反馈'}
+        </button>
+      </form>
     </ModalShell>
   )
 }
@@ -1860,6 +2021,15 @@ export default function App() {
                 <HistoryIcon />
                 最近更新
               </button>
+              <button
+                className="header-action header-action--feedback"
+                type="button"
+                onClick={() => setActiveModal('feedback')}
+                aria-haspopup="dialog"
+              >
+                <FeedbackIcon />
+                意见反馈
+              </button>
             </>
           )}
         </div>
@@ -1930,6 +2100,9 @@ export default function App() {
       )}
       {activeModal === 'promote' && (
         <PromoteGroupModal onClose={closeActiveModal} />
+      )}
+      {activeModal === 'feedback' && (
+        <FeedbackModal onClose={closeActiveModal} />
       )}
       {activeModal === 'activity-submit' && (
         <ActivitySubmissionModal onClose={closeActiveModal} />

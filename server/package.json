@@ -11,6 +11,7 @@
     "smoke": "node scripts/smoke-test.js",
     "test:review": "node scripts/review-flow-test.js",
     "test:activities": "node scripts/activity-flow-test.js",
+    "test:feedbacks": "node scripts/feedback-flow-test.js",
     "test:images": "node scripts/activity-image-store-test.js"
   },
   "dependencies": {

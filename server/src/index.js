@@ -9,6 +9,7 @@ import {
 import { ActivityApplicationStore, ActivityStore } from './activity-store.js'
 import { ApplicationStore } from './application-store.js'
 import { getBearerToken, login, logout, requireAdmin } from './auth.js'
+import { FeedbackStore } from './feedback-store.js'
 import { MetricsStore } from './metrics-store.js'
 import { GroupStore } from './store.js'
 
@@ -64,6 +65,34 @@ function validateApplicationPayload(body) {
   }
 
   return { ...group, applicantQq }
+}
+
+const validFeedbackCategories = new Set(['feature', 'issue', 'other'])
+
+function validateFeedbackPayload(body) {
+  const category = String(body?.category ?? '').trim()
+  const content = String(body?.content ?? '').trim()
+  const contactQq = String(body?.contactQq ?? '').replace(/\s+/g, '')
+  const fields = {}
+
+  if (!validFeedbackCategories.has(category)) {
+    fields.category = '请选择反馈类型。'
+  }
+  if (content.length < 2 || content.length > 1000) {
+    fields.content = '反馈内容需为 2–1000 个字符。'
+  }
+  if (contactQq && !/^\d{5,12}$/.test(contactQq)) {
+    fields.contactQq = '联系 QQ 应为 5–12 位数字，或留空。'
+  }
+
+  if (Object.keys(fields).length) {
+    const error = new Error('请检查填写内容。')
+    error.status = 422
+    error.fields = fields
+    throw error
+  }
+
+  return { category, content, contactQq }
 }
 
 const validActivityModes = new Set(['online', 'offline'])
@@ -229,6 +258,7 @@ export function createApp({
   store = new GroupStore(),
   metricsStore = new MetricsStore(),
   applicationStore = new ApplicationStore(),
+  feedbackStore = new FeedbackStore(),
   activityStore = new ActivityStore(),
   activityApplicationStore = new ActivityApplicationStore(),
   activityImageStore = new ActivityImageStore(),
@@ -393,6 +423,21 @@ export function createApp({
     }
   })
 
+  router.post('/api/feedbacks', async (ctx) => {
+    ctx.set('Cache-Control', 'no-store')
+    const input = validateFeedbackPayload(ctx.request.body)
+    const feedback = await feedbackStore.create(input)
+
+    ctx.status = 201
+    ctx.body = {
+      item: {
+        id: feedback.id,
+        status: feedback.status,
+        createdAt: feedback.createdAt,
+      },
+    }
+  })
+
   router.get('/api/metrics/pv', async (ctx) => {
     ctx.set('Cache-Control', 'no-store')
     ctx.body = await metricsStore.getPv()
@@ -424,6 +469,32 @@ export function createApp({
   router.post('/api/auth/logout', requireAdmin, (ctx) => {
     logout(getBearerToken(ctx))
     ctx.body = { ok: true }
+  })
+
+  router.get('/api/admin/feedbacks', requireAdmin, async (ctx) => {
+    ctx.set('Cache-Control', 'no-store')
+    ctx.body = await feedbackStore.list({
+      query: ctx.query.q,
+      status: ctx.query.status === 'processed' ? 'processed' : 'pending',
+      page: ctx.query.page,
+      pageSize: ctx.query.pageSize,
+    })
+  })
+
+  router.post('/api/admin/feedbacks/:id/status', requireAdmin, async (ctx) => {
+    const status = String(ctx.request.body?.status ?? '')
+    if (!['pending', 'processed'].includes(status)) {
+      throw createApiError(422, '反馈处理状态格式不正确。')
+    }
+
+    const feedback = await feedbackStore.setStatus(ctx.params.id, status)
+    if (!feedback) {
+      ctx.status = 404
+      ctx.body = { error: '没有找到这条反馈。' }
+      return
+    }
+
+    ctx.body = { item: feedback }
   })
 
   router.get('/api/admin/groups', requireAdmin, async (ctx) => {

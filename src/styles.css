@@ -410,7 +410,6 @@ h2 {
 
 .primary-link svg,
 .audio-button svg,
-.qq-card button svg,
 .group-search svg,
 .group-card button svg,
 .back-button svg {
@@ -495,58 +494,6 @@ h2 {
   color: rgba(255, 255, 255, 0.62);
   font-size: 13px;
   line-height: 1.75;
-}
-
-.page--join .lead {
-  max-width: 610px;
-}
-
-.qq-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 28px;
-  margin-top: 34px;
-  padding: 24px 24px 24px 28px;
-  border: 1px solid rgba(255, 255, 255, 0.19);
-  border-radius: 21px;
-  background: rgba(4, 24, 69, 0.5);
-  box-shadow: 0 22px 60px rgba(1, 16, 55, 0.24);
-  backdrop-filter: blur(22px);
-}
-
-.qq-card__label {
-  display: block;
-  margin-bottom: 7px;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-}
-
-.qq-card strong {
-  font: 700 clamp(29px, 3.3vw, 47px)/1 Inter, Arial, sans-serif;
-  letter-spacing: 0.06em;
-}
-
-.qq-card button {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 8px;
-  padding: 13px 16px;
-  border: 0;
-  border-radius: 999px;
-  background: #fff;
-  color: #0a327e;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: transform 180ms ease, background 180ms ease;
-}
-
-.qq-card button:hover {
-  background: #ffe86a;
-  transform: translateY(-2px);
 }
 
 .find-title span,
@@ -2845,15 +2792,6 @@ footer p {
 
   .info-card {
     min-height: auto;
-  }
-
-  .qq-card {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .qq-card button {
-    justify-content: center;
   }
 
   .results-heading {

@@ -19,7 +19,6 @@ import { RELEASE_LOGS } from './releaseLogs.js'
 const NAV_ITEMS = [
   { id: 'home', label: '首页' },
   { id: 'about', label: '关于我们' },
-  { id: 'join', label: '加入华师音游吹水群' },
   { id: 'find', label: '查找华师同好群' },
   { id: 'events', label: '同好活动广场' },
 ]
@@ -1072,29 +1071,6 @@ function AboutPage() {
   )
 }
 
-function JoinPage({ onCopy, copied }) {
-  return (
-    <section className="page page--inner page--join" aria-labelledby="join-title">
-      <p className="section-kicker">RHYTHM GAME CLUB / 音游同好</p>
-      <h2 id="join-title">想赤石的就来</h2>
-      <p className="lead">
-        想在华师找人一起打音游、聊谱面、赤石？在 QQ 中搜索下面的群号即可加入。
-      </p>
-
-      <div className="qq-card">
-        <div>
-          <span className="qq-card__label">华师音游吹水群 · QQ 群号</span>
-          <strong>779 237 255</strong>
-        </div>
-        <button type="button" onClick={onCopy} aria-label="复制 QQ 群号 779237255">
-          <CopyIcon />
-          {copied ? '已复制' : '复制群号'}
-        </button>
-      </div>
-    </section>
-  )
-}
-
 function GroupSearchForm({ initialQuery = '', onSearch, compact = false }) {
   const [query, setQuery] = useState(initialQuery)
   const [error, setError] = useState('')
@@ -1898,12 +1874,6 @@ export default function App() {
         >
           {route.page === 'home' && <HomePage />}
           {route.page === 'about' && <AboutPage />}
-          {route.page === 'join' && (
-            <JoinPage
-              onCopy={() => handleCopy('779237255', 'join')}
-              copied={copiedGroupId === 'join'}
-            />
-          )}
           {route.page === 'find' && (
             <FindGroupsPage
               onSearch={(query) => updateRoute(RESULT_PAGE, query)}

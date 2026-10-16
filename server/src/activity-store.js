@@ -75,6 +75,17 @@ function paginate(items, { page = 1, pageSize = 12 } = {}) {
   }
 }
 
+function matchesApplicationStatus(application, status) {
+  if (!status) return true
+  if (status === 'reviewed') return application.status !== 'pending'
+  return application.status === status
+}
+
+function reviewedAtTimestamp(application) {
+  const timestamp = Date.parse(application.reviewedAt || '')
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
 function compareTitles(first, second) {
   return String(first.title).localeCompare(String(second.title), 'zh-CN', {
     numeric: true,
@@ -210,11 +221,17 @@ export class ActivityApplicationStore extends JsonCollectionStore {
   }
 
   async list({ query = '', status = 'pending', page = 1, pageSize = 10 } = {}) {
-    const applications = (await this.readAll()).filter(
-      (application) =>
-        (!status || application.status === status) &&
-        matchesActivity(application, query, { includeApplicant: true }),
-    )
+    const applications = (await this.readAll())
+      .filter(
+        (application) =>
+          matchesApplicationStatus(application, status) &&
+          matchesActivity(application, query, { includeApplicant: true }),
+      )
+      .sort((first, second) =>
+        status === 'reviewed'
+          ? reviewedAtTimestamp(second) - reviewedAtTimestamp(first)
+          : 0,
+      )
     return paginate(applications, { page, pageSize })
   }
 
@@ -266,7 +283,7 @@ export class ActivityApplicationStore extends JsonCollectionStore {
         reviewedAt: now,
         updatedAt: now,
       }
-      applications.splice(index, 1)
+      applications[index] = reviewedApplication
       return { item: reviewedApplication, reason: '' }
     })
   }

@@ -204,6 +204,33 @@ async function run() {
     assert.equal(pendingAfterReview.status, 200)
     assert.equal(pendingAfterReview.body.total, 0)
 
+    const reviewHistory = await request(
+      origin,
+      '/api/admin/applications?status=reviewed',
+      { token },
+    )
+    assert.equal(reviewHistory.status, 200)
+    assert.equal(reviewHistory.body.total, 2)
+    assert.deepEqual(
+      new Set(reviewHistory.body.items.map((item) => item.status)),
+      new Set(['approved', 'rejected']),
+    )
+    assert.ok(reviewHistory.body.items.every((item) => item.reviewedAt))
+
+    const editReviewed = await request(
+      origin,
+      `/api/admin/applications/${encodeURIComponent(rejectId)}`,
+      { method: 'PUT', token, body: { ...applicationPayload, qq: '123450988' } },
+    )
+    assert.equal(editReviewed.status, 409)
+
+    const rejectedCanReapply = await request(origin, '/api/group-applications', {
+      method: 'POST',
+      body: { ...applicationPayload, qq: '123450988' },
+    })
+    assert.equal(rejectedCanReapply.status, 201)
+    assert.equal(rejectedCanReapply.body.item.status, 'pending')
+
     const removed = await request(
       origin,
       `/api/admin/groups/${encodeURIComponent(approved.body.group.id)}`,
@@ -218,7 +245,7 @@ async function run() {
     assert.equal(availableAgain.body.status, 'available')
 
     console.log(
-      'Review flow test passed: pending/rejected hidden, edit, approve, publish, duplicate checks.',
+      'Review flow test passed: pending/rejected hidden, edit, approve, history, publish, duplicate checks.',
     )
   } finally {
     await new Promise((resolve, reject) =>

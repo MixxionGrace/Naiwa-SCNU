@@ -42,6 +42,17 @@ function matchesApplication(application, query) {
   )
 }
 
+function matchesStatus(application, status) {
+  if (!status) return true
+  if (status === 'reviewed') return application.status !== 'pending'
+  return application.status === status
+}
+
+function reviewedAtTimestamp(application) {
+  const timestamp = Date.parse(application.reviewedAt || '')
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
 function toPositiveInteger(value, fallback, maximum) {
   const parsed = Number.parseInt(value, 10)
   if (!Number.isFinite(parsed) || parsed < 1) return fallback
@@ -81,11 +92,17 @@ export class ApplicationStore {
     const safePageSize = toPositiveInteger(pageSize, 10, 100)
     const requestedPage = toPositiveInteger(page, 1, 100000)
     const applications = await this.readAll()
-    const matchedApplications = applications.filter(
-      (application) =>
-        (!status || application.status === status) &&
-        matchesApplication(application, query),
-    )
+    const matchedApplications = applications
+      .filter(
+        (application) =>
+          matchesStatus(application, status) &&
+          matchesApplication(application, query),
+      )
+      .sort((first, second) =>
+        status === 'reviewed'
+          ? reviewedAtTimestamp(second) - reviewedAtTimestamp(first)
+          : 0,
+      )
 
     const total = matchedApplications.length
     const pageCount = Math.max(1, Math.ceil(total / safePageSize))
@@ -178,7 +195,7 @@ export class ApplicationStore {
         reviewedAt: now,
         updatedAt: now,
       }
-      applications.splice(index, 1)
+      applications[index] = reviewedApplication
       return { item: reviewedApplication, reason: '' }
     })
   }

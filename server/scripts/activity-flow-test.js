@@ -291,6 +291,24 @@ async function run() {
     const rejectedIsHidden = await request(origin, '/api/activities?q=Rejected')
     assert.equal(rejectedIsHidden.body.total, 0)
 
+    const pendingAfterReview = await request(
+      origin,
+      '/api/admin/activity-applications',
+      { token },
+    )
+    assert.equal(pendingAfterReview.status, 200)
+    assert.equal(pendingAfterReview.body.total, 0)
+
+    const reviewHistory = await request(
+      origin,
+      '/api/admin/activity-applications?status=reviewed',
+      { token },
+    )
+    assert.equal(reviewHistory.status, 200)
+    assert.equal(reviewHistory.body.total, 3)
+    assert.equal(reviewHistory.body.items[0].status, 'rejected')
+    assert.ok(reviewHistory.body.items.every((item) => item.reviewedAt))
+
     const adminCreated = await request(origin, '/api/admin/activities', {
       method: 'POST',
       token,
@@ -334,7 +352,7 @@ async function run() {
     assert.equal(removedImage.status, 404)
 
     console.log(
-      'Activity flow test passed: submit, admin create/image/edit, approve, pin order, privacy, reject, delete.',
+      'Activity flow test passed: submit, admin create/image/edit, approve, history, pin order, privacy, reject, delete.',
     )
   } finally {
     await new Promise((resolve, reject) =>

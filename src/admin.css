@@ -246,6 +246,33 @@
   flex-wrap: wrap;
 }
 
+.admin-review-filter {
+  display: inline-flex;
+  gap: 5px;
+  margin-top: 11px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(2, 17, 52, 0.45);
+}
+
+.admin-review-filter button {
+  min-height: 34px;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-review-filter button.is-active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffe86a;
+}
+
 .admin-toolbar {
   display: flex;
   align-items: center;
@@ -543,6 +570,33 @@
 
 .admin-row-actions .is-unpin {
   color: rgba(255, 232, 106, 0.68);
+}
+
+.admin-review-status {
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+}
+
+.admin-review-status > span {
+  display: inline-flex;
+  padding: 5px 9px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.admin-review-status > span.is-approved {
+  border-color: rgba(118, 255, 174, 0.34);
+  background: rgba(62, 178, 107, 0.12);
+  color: #a6ffc7;
+}
+
+.admin-review-status > span.is-rejected {
+  border-color: rgba(255, 125, 125, 0.34);
+  background: rgba(255, 107, 107, 0.1);
+  color: #ffb7b7;
 }
 
 .admin-table-state {
@@ -990,17 +1044,85 @@
     justify-content: center;
   }
 
-  .admin-table-card table {
-    min-width: 760px;
+  .admin-table-scroll {
+    overflow: visible;
   }
 
-  .admin-table-card--applications table {
-    min-width: 1060px;
-  }
-
+  .admin-table-card table,
+  .admin-table-card--applications table,
   .admin-table-card--activities table,
   .admin-table-card--activity-applications table {
-    min-width: 1180px;
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .admin-table-card thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .admin-table-card tbody {
+    display: grid;
+    gap: 11px;
+    padding: 11px;
+  }
+
+  .admin-table-card tbody tr {
+    display: block;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .admin-table-card tbody tr:hover td {
+    background: transparent;
+  }
+
+  .admin-table-card tbody td {
+    display: grid;
+    grid-template-columns: minmax(82px, 0.34fr) minmax(0, 1fr);
+    gap: 13px;
+    min-height: 46px;
+    align-items: center;
+    padding: 12px 14px;
+  }
+
+  .admin-table-card tbody td::before {
+    content: attr(data-label);
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+  }
+
+  .admin-table-card tbody td > code:not(.admin-applicant-qq) {
+    margin-top: 0;
+  }
+
+  .admin-table-card tbody .admin-row-actions {
+    justify-content: flex-start;
+  }
+
+  .admin-table-card tbody .admin-table-state-row {
+    border: 0;
+    background: transparent;
+  }
+
+  .admin-table-card tbody .admin-table-state {
+    display: block;
+    height: auto;
+    min-height: 150px;
+    padding: 60px 18px;
+  }
+
+  .admin-table-card tbody .admin-table-state::before {
+    display: none;
   }
 }
 
@@ -1042,6 +1164,12 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
     border-radius: 16px;
+  }
+
+  .admin-review-filter {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
   }
 
   .admin-search {

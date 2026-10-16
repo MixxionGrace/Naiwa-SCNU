@@ -34,12 +34,13 @@ async function apiRequest(path, { token = '', body, method = 'GET', signal } = {
   return payload
 }
 
-function createGroupQuery({ query = '', page = 1, pageSize = 20 } = {}) {
+function createGroupQuery({ query = '', page = 1, pageSize = 20, status = '' } = {}) {
   const search = new URLSearchParams({
     page: String(page),
     pageSize: String(pageSize),
   })
   if (query.trim()) search.set('q', query.trim())
+  if (status) search.set('status', status)
   return search.toString()
 }
 

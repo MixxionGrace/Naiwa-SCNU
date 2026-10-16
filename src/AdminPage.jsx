@@ -474,7 +474,9 @@ function ReviewConfirmation({
       </div>
       <p>
         {isApprove ? '通过后' : '拒绝后'}「<strong>{application.name}</strong>」
-        {isApprove ? '会立即展示在前台同好群列表中。' : '将从待审核列表中移除。'}
+        {isApprove
+          ? '会立即展示在前台同好群列表中，并保留审核记录。'
+          : '会从待审核列表移入审核历史。'}
       </p>
       {error && <p className="admin-form-error" role="alert">{error}</p>}
       <div className="admin-dialog__actions">
@@ -956,7 +958,9 @@ function ActivityReviewConfirmation({
       </div>
       <p>
         {isApprove ? '通过后' : '拒绝后'}「<strong>{application.title}</strong>」
-        {isApprove ? '会立即展示在活动广场中。' : '将从待审核列表中移除。'}
+        {isApprove
+          ? '会立即展示在活动广场中，并保留审核记录。'
+          : '会从待审核列表移入审核历史。'}
       </p>
       {isApprove && (
         <label className="admin-pin-option admin-pin-option--review">
@@ -1038,6 +1042,21 @@ function formatSubmittedAt(value) {
   }).format(date)
 }
 
+function ReviewStatus({ application }) {
+  const approved = application.status === 'approved'
+
+  return (
+    <div className="admin-review-status">
+      <span className={approved ? 'is-approved' : 'is-rejected'}>
+        {approved ? '已通过' : '已拒绝'}
+      </span>
+      <time dateTime={application.reviewedAt || undefined}>
+        {formatSubmittedAt(application.reviewedAt)}
+      </time>
+    </div>
+  )
+}
+
 const ADMIN_TABS = [
   { id: 'groups', label: '同好群列表' },
   { id: 'applications', label: '宣群审核' },
@@ -1071,6 +1090,7 @@ function ActivityTimesSummary({ times, timeTbd }) {
 
 function AdminDashboard({ token, onUnauthorized }) {
   const [activeTab, setActiveTab] = useState('groups')
+  const [reviewView, setReviewView] = useState('pending')
   const [items, setItems] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -1094,6 +1114,8 @@ function AdminDashboard({ token, onUnauthorized }) {
   const isActivitiesTab = activeTab === 'activities'
   const isActivityApplicationsTab = activeTab === 'activity-applications'
   const isGroupsTab = activeTab === 'groups'
+  const isReviewTab = isGroupApplicationsTab || isActivityApplicationsTab
+  const isHistoryView = isReviewTab && reviewView === 'history'
 
   useEffect(() => {
     const controller = new AbortController()
@@ -1110,6 +1132,9 @@ function AdminDashboard({ token, onUnauthorized }) {
       query,
       page,
       pageSize: ADMIN_PAGE_SIZE,
+      status: isReviewTab
+        ? isHistoryView ? 'reviewed' : 'pending'
+        : '',
       signal: controller.signal,
     })
       .then((result) => {
@@ -1129,7 +1154,7 @@ function AdminDashboard({ token, onUnauthorized }) {
       .finally(() => setLoading(false))
 
     return () => controller.abort()
-  }, [activeTab, token, query, page, refreshKey, onUnauthorized])
+  }, [activeTab, token, query, page, refreshKey, onUnauthorized, isReviewTab, isHistoryView])
 
   useEffect(() => {
     if (!notice) return undefined
@@ -1159,6 +1184,17 @@ function AdminDashboard({ token, onUnauthorized }) {
     setPageCount(1)
     setQueryInput('')
     setQuery('')
+    setReviewView('pending')
+    setError('')
+  }
+
+  const selectReviewView = (nextView) => {
+    if (nextView === reviewView) return
+    setReviewView(nextView)
+    setItems([])
+    setTotal(0)
+    setPage(1)
+    setPageCount(1)
     setError('')
   }
 
@@ -1183,9 +1219,13 @@ function AdminDashboard({ token, onUnauthorized }) {
 
   const tabCopy = {
     groups: `当前共收录 ${total} 个群，所有修改会同步到前台查询。`,
-    applications: `当前有 ${total} 条待审核宣群申请。`,
+    applications: isHistoryView
+      ? `共找到 ${total} 条宣群审核历史。`
+      : `当前有 ${total} 条待审核宣群申请。`,
     activities: `当前有 ${total} 个公开活动；置顶活动优先并按标题排序。`,
-    'activity-applications': `当前有 ${total} 条待审核活动申请。通过后才会出现在前台。`,
+    'activity-applications': isHistoryView
+      ? `共找到 ${total} 条活动审核历史。`
+      : `当前有 ${total} 条待审核活动申请。通过后才会出现在前台。`,
   }
   const searchPlaceholders = {
     groups: '搜索群名、关键词或 QQ 群号',
@@ -1219,6 +1259,29 @@ function AdminDashboard({ token, onUnauthorized }) {
           </button>
         ))}
       </div>
+
+      {isReviewTab && (
+        <div className="admin-review-filter" role="tablist" aria-label={isGroupApplicationsTab ? '宣群申请状态' : '活动申请状态'}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!isHistoryView}
+            className={!isHistoryView ? 'is-active' : ''}
+            onClick={() => selectReviewView('pending')}
+          >
+            待审核
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={isHistoryView}
+            className={isHistoryView ? 'is-active' : ''}
+            onClick={() => selectReviewView('history')}
+          >
+            审核 / 申请历史
+          </button>
+        </div>
+      )}
 
       {notice && <div className="admin-notice" role="status">{notice}</div>}
 
@@ -1270,7 +1333,7 @@ function AdminDashboard({ token, onUnauthorized }) {
                   <th scope="col">QQ 群号</th>
                   <th scope="col">申请人 QQ</th>
                   <th scope="col">提交时间</th>
-                  <th scope="col">操作</th>
+                  <th scope="col">{isHistoryView ? '审核结果' : '操作'}</th>
                 </tr>
               ) : (
                 <tr>
@@ -1279,29 +1342,29 @@ function AdminDashboard({ token, onUnauthorized }) {
                   <th scope="col">{isActivitiesTab ? '群聊' : '活动时间'}</th>
                   <th scope="col">{isActivitiesTab ? '活动时间' : '形式'}</th>
                   <th scope="col">{isActivitiesTab ? '形式' : '申请人 QQ'}</th>
-                  <th scope="col">操作</th>
+                  <th scope="col">{isHistoryView && isActivityApplicationsTab ? '审核结果' : '操作'}</th>
                 </tr>
               )}
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={columnCount} className="admin-table-state">正在加载资料…</td></tr>
+                <tr className="admin-table-state-row"><td colSpan={columnCount} className="admin-table-state">正在加载资料…</td></tr>
               ) : error ? (
-                <tr>
+                <tr className="admin-table-state-row">
                   <td colSpan={columnCount} className="admin-table-state admin-table-state--error">
                     {error}
                     <button type="button" onClick={() => setRefreshKey((value) => value + 1)}>重试</button>
                   </td>
                 </tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={columnCount} className="admin-table-state">当前没有匹配资料。</td></tr>
+                <tr className="admin-table-state-row"><td colSpan={columnCount} className="admin-table-state">当前没有匹配资料。</td></tr>
               ) : isGroupsTab ? (
                 items.map((group) => (
                   <tr key={group.id}>
-                    <td><strong>{group.name}</strong></td>
-                    <td><div className="admin-keywords">{group.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div></td>
-                    <td><code>{group.qq}</code></td>
-                    <td>
+                    <td data-label="群名"><strong>{group.name}</strong></td>
+                    <td data-label="关键词"><div className="admin-keywords">{group.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div></td>
+                    <td data-label="QQ 群号"><code>{group.qq}</code></td>
+                    <td data-label="操作">
                       <div className="admin-row-actions">
                         <button type="button" onClick={() => setEditorGroup(group)}>编辑</button>
                         <button className="is-danger" type="button" onClick={() => setDeletingGroup(group)}>删除</button>
@@ -1312,35 +1375,39 @@ function AdminDashboard({ token, onUnauthorized }) {
               ) : isGroupApplicationsTab ? (
                 items.map((application) => (
                   <tr key={application.id}>
-                    <td><strong>{application.name}</strong></td>
-                    <td><div className="admin-keywords">{application.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div></td>
-                    <td><code>{application.qq}</code></td>
-                    <td><code className="admin-applicant-qq">{application.applicantQq}</code></td>
-                    <td><time dateTime={application.createdAt}>{formatSubmittedAt(application.createdAt)}</time></td>
-                    <td>
-                      <div className="admin-row-actions admin-row-actions--review">
-                        <button type="button" onClick={() => setEditorApplication(application)}>编辑</button>
-                        <button className="is-approve" type="button" onClick={() => setReviewingApplication({ application, decision: 'approve' })}>通过</button>
-                        <button className="is-danger" type="button" onClick={() => setReviewingApplication({ application, decision: 'reject' })}>拒绝</button>
-                      </div>
+                    <td data-label="群名"><strong>{application.name}</strong></td>
+                    <td data-label="相关游戏"><div className="admin-keywords">{application.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div></td>
+                    <td data-label="QQ 群号"><code>{application.qq}</code></td>
+                    <td data-label="申请人 QQ"><code className="admin-applicant-qq">{application.applicantQq}</code></td>
+                    <td data-label="提交时间"><time dateTime={application.createdAt}>{formatSubmittedAt(application.createdAt)}</time></td>
+                    <td data-label={isHistoryView ? '审核结果' : '操作'}>
+                      {isHistoryView ? (
+                        <ReviewStatus application={application} />
+                      ) : (
+                        <div className="admin-row-actions admin-row-actions--review">
+                          <button type="button" onClick={() => setEditorApplication(application)}>编辑</button>
+                          <button className="is-approve" type="button" onClick={() => setReviewingApplication({ application, decision: 'approve' })}>通过</button>
+                          <button className="is-danger" type="button" onClick={() => setReviewingApplication({ application, decision: 'reject' })}>拒绝</button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))
               ) : isActivitiesTab ? (
                 items.map((activity) => (
                   <tr key={activity.id}>
-                    <td><span className={`admin-pin-badge${activity.pinned ? ' is-pinned' : ''}`}>{activity.pinned ? '已置顶' : '普通'}</span></td>
-                    <td>
+                    <td data-label="置顶"><span className={`admin-pin-badge${activity.pinned ? ' is-pinned' : ''}`}>{activity.pinned ? '已置顶' : '普通'}</span></td>
+                    <td data-label="活动">
                       <div className="admin-activity-title-row">
                         <strong>{activity.title}</strong>
                         {activity.imageUrl && <span>有图</span>}
                       </div>
                       <small className="admin-activity-excerpt">{activity.content}</small>
                     </td>
-                    <td><strong>{activity.groupName}</strong><code>{activity.groupQq}</code></td>
-                    <td><ActivityTimesSummary times={activity.times} timeTbd={activity.timeTbd} /></td>
-                    <td><ActivityModeTags modes={activity.modes} /></td>
-                    <td>
+                    <td data-label="群聊"><strong>{activity.groupName}</strong><code>{activity.groupQq}</code></td>
+                    <td data-label="活动时间"><ActivityTimesSummary times={activity.times} timeTbd={activity.timeTbd} /></td>
+                    <td data-label="形式"><ActivityModeTags modes={activity.modes} /></td>
+                    <td data-label="操作">
                       <div className="admin-row-actions admin-row-actions--activity">
                         <button type="button" className={activity.pinned ? 'is-unpin' : 'is-pin'} onClick={() => handlePin(activity)}>{activity.pinned ? '取消置顶' : '置顶'}</button>
                         <button type="button" onClick={() => setEditorActivity(activity)}>编辑</button>
@@ -1352,23 +1419,27 @@ function AdminDashboard({ token, onUnauthorized }) {
               ) : (
                 items.map((application) => (
                   <tr key={application.id}>
-                    <td>
+                    <td data-label="标题">
                       <div className="admin-activity-title-row">
                         <strong>{application.title}</strong>
                         {application.imageUrl && <span>有图</span>}
                       </div>
                       <small className="admin-activity-excerpt">{application.content}</small>
                     </td>
-                    <td><strong>{application.groupName}</strong><code>{application.groupQq}</code></td>
-                    <td><ActivityTimesSummary times={application.times} timeTbd={application.timeTbd} /></td>
-                    <td><ActivityModeTags modes={application.modes} /></td>
-                    <td><code className="admin-applicant-qq">{application.applicantQq}</code></td>
-                    <td>
-                      <div className="admin-row-actions admin-row-actions--review">
-                        <button type="button" onClick={() => setEditorActivityApplication(application)}>编辑</button>
-                        <button className="is-approve" type="button" onClick={() => setReviewingActivityApplication({ application, decision: 'approve' })}>通过</button>
-                        <button className="is-danger" type="button" onClick={() => setReviewingActivityApplication({ application, decision: 'reject' })}>拒绝</button>
-                      </div>
+                    <td data-label="群聊"><strong>{application.groupName}</strong><code>{application.groupQq}</code></td>
+                    <td data-label="活动时间"><ActivityTimesSummary times={application.times} timeTbd={application.timeTbd} /></td>
+                    <td data-label="形式"><ActivityModeTags modes={application.modes} /></td>
+                    <td data-label="申请人 QQ"><code className="admin-applicant-qq">{application.applicantQq}</code></td>
+                    <td data-label={isHistoryView ? '审核结果' : '操作'}>
+                      {isHistoryView ? (
+                        <ReviewStatus application={application} />
+                      ) : (
+                        <div className="admin-row-actions admin-row-actions--review">
+                          <button type="button" onClick={() => setEditorActivityApplication(application)}>编辑</button>
+                          <button className="is-approve" type="button" onClick={() => setReviewingActivityApplication({ application, decision: 'approve' })}>通过</button>
+                          <button className="is-danger" type="button" onClick={() => setReviewingActivityApplication({ application, decision: 'reject' })}>拒绝</button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))

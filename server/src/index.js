@@ -481,7 +481,7 @@ export function createApp({
   router.get('/api/admin/applications', requireAdmin, async (ctx) => {
     ctx.body = await applicationStore.list({
       query: ctx.query.q,
-      status: 'pending',
+      status: ctx.query.status === 'reviewed' ? 'reviewed' : 'pending',
       page: ctx.query.page,
       pageSize: ctx.query.pageSize,
     })
@@ -683,7 +683,7 @@ export function createApp({
   router.get('/api/admin/activity-applications', requireAdmin, async (ctx) => {
     ctx.body = await activityApplicationStore.list({
       query: ctx.query.q,
-      status: 'pending',
+      status: ctx.query.status === 'reviewed' ? 'reviewed' : 'pending',
       page: ctx.query.page,
       pageSize: ctx.query.pageSize,
     })

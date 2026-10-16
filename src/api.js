@@ -93,11 +93,71 @@ export function trackPageView() {
 }
 
 export function loginAdmin(credentials) {
-  return apiRequest('/api/auth/login', { method: 'POST', body: credentials })
+  return apiRequest('/api/auth/login', {
+    method: 'POST',
+    body: { ...credentials, portal: 'admin' },
+  })
 }
 
 export function logoutAdmin(token) {
   return apiRequest('/api/auth/logout', { method: 'POST', token })
+}
+
+export const logoutSession = logoutAdmin
+
+export function loginChat(credentials) {
+  return apiRequest('/api/auth/login', {
+    method: 'POST',
+    body: { ...credentials, portal: 'chat' },
+  })
+}
+
+export function getCurrentSession(token, options = {}) {
+  return apiRequest('/api/auth/me', { token, signal: options.signal })
+}
+
+export function getChatRoom(token, options = {}) {
+  const search = new URLSearchParams({
+    messageLimit: String(options.messageLimit || 150),
+  })
+  return apiRequest(`/api/chat/room?${search}`, {
+    token,
+    signal: options.signal,
+  })
+}
+
+export function createChatMessage(token, content) {
+  return apiRequest('/api/chat/messages', {
+    method: 'POST',
+    token,
+    body: { content },
+  })
+}
+
+export function getChatDocument(token, options = {}) {
+  return apiRequest('/api/chat/document', { token, signal: options.signal })
+}
+
+export function deleteChatMessage(token, id) {
+  return apiRequest(`/api/chat/messages/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    token,
+  })
+}
+
+export function createDocumentComment(token, comment) {
+  return apiRequest('/api/chat/comments', {
+    method: 'POST',
+    token,
+    body: comment,
+  })
+}
+
+export function deleteDocumentComment(token, id) {
+  return apiRequest(`/api/chat/comments/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    token,
+  })
 }
 
 export function getAdminGroups(token, options = {}) {

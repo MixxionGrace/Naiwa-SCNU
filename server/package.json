@@ -12,7 +12,8 @@
     "test:review": "node scripts/review-flow-test.js",
     "test:activities": "node scripts/activity-flow-test.js",
     "test:feedbacks": "node scripts/feedback-flow-test.js",
-    "test:images": "node scripts/activity-image-store-test.js"
+    "test:images": "node scripts/activity-image-store-test.js",
+    "test:chat": "node scripts/chat-flow-test.js"
   },
   "dependencies": {
     "@koa/router": "^12.0.1",

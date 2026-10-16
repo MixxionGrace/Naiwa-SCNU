@@ -1,0 +1,218 @@
+<header class="oracle-prose__cover" data-document-section="background"><span>DESIRE CARD / TECHNICAL DESIGN</span><h1>AI 出牌决策重构技术方案</h1>
+<p class="oracle-prose__subtitle">基于 POMCP 思路的混合规划算法</p>
+<div class="oracle-prose__metadata"><span>方案 v0.2 · 讨论整理版</span><time dateTime="2026-10-17">2026-10-17</time><b>设计提案</b></div>
+<p>面向《末站牌局》的五类 AI 对手，以“信念状态树搜索 + 战役价值评估 + 条件化残局求解 + 近优性格选择”构建统一决策核心。文档将原讨论中的算法说明与具体工程约束整理为可评审方案。</p>
+<aside class="oracle-prose__note"><strong>阅读说明</strong>本页支持阅读与评论。当前状态为方案设计阶段；预算与性能数值作为实验起点和待验证目标。旧 AI 的 161 项测试作为历史基线，新方案按本文指标独立验收。</aside>
+</header>
+<section class="oracle-prose__section" id="oracle-doc-glossary" data-document-section="glossary"><h2><span>01</span>术语表</h2>
+<p>先区分四个层次：POMDP 描述问题，POMCP 组织求解，MCTS 负责树搜索，UCT 在树内分配计算。手牌 DP、玩家模型、残局求解与角色选择是本游戏增加的配套模块。</p>
+<div class="oracle-prose__table-scroll" tabindex="0" role="region" aria-label="术语与本游戏中的含义"><table><caption>术语与本游戏中的含义</caption><thead><tr><th scope="col">术语</th><th scope="col">中文 / 全称</th><th scope="col">含义与使用位置</th></tr>
+</thead>
+<tbody><tr><th scope="row">MDP</th><td>马尔可夫决策过程</td><td>用完整状态描述连续决策；状态须包含技能次数、机制标记等预测下一步所需的信息。</td></tr>
+<tr><th scope="row">POMDP</th><td>部分可观测马尔可夫决策过程</td><td>问题模型：AI 根据自己的手牌与公开信息，估计玩家可能持有的牌并连续决策。</td></tr>
+<tr><th scope="row">State / S</th><td>真实状态</td><td>双方手牌、生命、金币、机制区和隐藏状态组成完整局面；搜索器使用按观察者权限投影后的信息。</td></tr>
+<tr><th scope="row">Action / A</th><td>行动</td><td>完整的出牌选择、牌型声明、过牌及角色依法拥有的技能或借牌操作。</td></tr>
+<tr><th scope="row">Observation</th><td>观测</td><td>某一方按规则可知的信息；对方抽到暗牌时，公开观测通常为手牌数量变化。</td></tr>
+<tr><th scope="row">Belief State</th><td>信念状态</td><td>根据公开事实和历史，估计未知局面的可能性分布。</td></tr>
+<tr><th scope="row">Particle</th><td>粒子</td><td>一份满足观测约束的假想完整局面；许多粒子共同表示 AI 对牌局的判断。</td></tr>
+<tr><th scope="row">Monte Carlo</th><td>蒙特卡洛</td><td>反复抽样和模拟，用样本估计不同选择的长期结果。</td></tr>
+<tr><th scope="row">MCTS</th><td>蒙特卡洛树搜索</td><td>搜索核心：选择、扩展、模拟、回传，逐步把计算投入更值得研究的分支。</td></tr>
+<tr><th scope="row">POMCP</th><td>部分可观测蒙特卡洛规划</td><td>将粒子信念与 MCTS 结合，按行动和观测历史组织搜索，求解 POMDP 的一种方法。</td></tr>
+<tr><th scope="row">UCT</th><td>树上的置信上界选择</td><td>树内分配尝试机会的规则：兼顾已有较好表现的行动与需要更多探索的行动。</td></tr>
+<tr><th scope="row">Policy / π</th><td>策略</td><td>根据一方合法掌握的信息选择行动；玩家策略集合提供多种合理应对。</td></tr>
+<tr><th scope="row">Rollout</th><td>模拟续局</td><td>在搜索树的远处，使用较轻量的策略把牌局继续打下去。</td></tr>
+<tr><th scope="row">DP</th><td>动态规划</td><td>复用小问题的答案估计手牌拆分；例如出 K 后能否保留一手完整顺子。</td></tr>
+<tr><th scope="row">Value / Q</th><td>状态价值与行动价值</td><td>评估局面或行动对整场战役有多有利；当前记录价值估计，胜率解释以对局校准为依据。</td></tr>
+<tr><th scope="row">Information Set</th><td>信息集</td><td>当前观察者看到相同信息的一组真实局面；相同信息使用同一决策策略。</td></tr>
+<tr><th scope="row">Near-optimal Set</th><td>近优动作集合</td><td>经独立样本复核，与参考最佳动作的估计差距在 ε 内的行动集合。</td></tr>
+<tr><th scope="row">Endgame Solver</th><td>残局求解器</td><td>满足完整覆盖条件时输出胜负证明；有限粒子全胜记录为样本内的搜索结果。</td></tr>
+<tr><th scope="row">RNG</th><td>随机数生成器</td><td>正式对局与搜索模拟使用两套独立随机流；实际牌库进度由正式对局维护。</td></tr>
+<tr><th scope="row">p95 / 回归 / 优化</th><td>评估口径</td><td>p95 表示 95% 决策的耗时落在该值以内；回归守住正确性，优化衡量能力与成本改善。</td></tr>
+</tbody>
+</table>
+</div>
+<p class="oracle-prose__footnote">POMDP：Partially Observable Markov Decision Process；POMCP：Partially Observable Monte-Carlo Planning；MCTS：Monte Carlo Tree Search；UCT：Upper Confidence Bounds applied to Trees。</p>
+</section>
+<section class="oracle-prose__section" id="oracle-doc-background" data-document-section="background"><h2><span>02</span>设计背景</h2>
+<p>原讨论从“当前 AI 为什么这样出牌”开始。对 2026-10-16 工作区的分析表明，正式模式依次使用固定规则、角色偏好与单步机制收益；Boss 战术开关会跳过已有的手牌规划器。原有决策重点落在动作合法性与当步收益，本次重构增加后续结构、连续行动与战役收益的比较。</p>
+<div class="oracle-prose__table-scroll" tabindex="0" role="region" aria-label="原会话中已验证的策略盲点"><table><caption>原会话中已验证的策略盲点</caption><thead><tr><th scope="col">局面 / 条件</th><th scope="col">旧行为</th><th scope="col">重构要解决的问题</th></tr>
+</thead>
+<tbody><tr><th scope="row">6、7、8、9、10、K 跟单张 5</th><td>正式 Boss 模式出 6，余牌最少 5 手；启用原规划器时出 K，余牌 1 手。</td><td>跟牌必须考虑保留顺子的后续价值。</td></tr>
+<tr><th scope="row">6、8、K 跟单张 5，具备八切条件</th><td>选择 6，评分范围集中在当前动作结果。</td><td>按实际行动者继续模拟，覆盖同一方连续行动。</td></tr>
+<tr><th scope="row">反转单张规则下，3、7、9、K 跟 10</th><td>识别合法性，但按原点数顺序消耗 3。</td><td>控制力按当前规则和后续可兑现的牌权计算。</td></tr>
+<tr><th scope="row">玩家剩 1～2 张</th><td>降低保炸弹与过牌阈值，部分路径在此转为规则选牌。</td><td>残局应加强防守搜索，区分已知牌与未知牌。</td></tr>
+</tbody>
+</table>
+</div>
+<p>游戏允许 AI 存活到第九局取得战役胜利，最快出完与赢下当前小局共同服务于整场战役目标。生命、护盾、经济、玩家构筑、剩余轮数与特殊机制必须共同进入长期评价。首期重构范围为 Playing 阶段；选牌、开包和商店策略保留原有实现，其后续资源影响进入战役估值。</p>
+</section>
+<section class="oracle-prose__section" id="oracle-doc-goals" data-document-section="goals"><h2><span>03</span>设计目标</h2>
+<p>算法应在相同合法信息与可控计算成本下提高 AI 战役获胜能力，并保留零号站台、回声、熔坑、铁库、图纸的打法区别。水平来自更好的推演，性格来自好棋之间的选择，难度由计算预算和模型能力决定。</p>
+<div class="oracle-prose__table-scroll" tabindex="0" role="region" aria-label="目标与验收方向"><table><caption>目标与验收方向</caption><thead><tr><th scope="col">目标</th><th scope="col">设计约束</th><th scope="col">验证方式</th></tr>
+</thead>
+<tbody><tr><th scope="row">战役水平</th><td>以 AI 整场胜负为最终目标，同时判断本局承伤、资源和后续威胁。</td><td>同版本、成对种子、多玩家代理的战役评估。</td></tr>
+<tr><th scope="row">信息公平</th><td>搜索和玩家模型均根据各自合法观测计算，支持公开记牌与知识失效。</td><td>替换隐藏状态后，动作与诊断保持一致。</td></tr>
+<tr><th scope="row">战术正确</th><td>共享真实规则，覆盖技能、连续行动、特殊声明与结算顺序。</td><td>模拟差分与有前提的战术题库。</td></tr>
+<tr><th scope="row">角色鲜明</th><td>五角色共享强核心，在复核后的近优集合中表达风格。</td><td>同局面同预算的风格指标和盲测。</td></tr>
+<tr><th scope="row">工程可用</th><td>本地 C#、固定工作量、后台计算、存档版本与过期保护。</td><td>回放一致性、延迟分位数、内存和回退率。</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+<section class="oracle-prose__section" id="oracle-doc-solution" data-document-section="solution"><h2><span>04</span>设计方案</h2>
+<h3>4.1 选型：用 POMDP 建模，用 POMCP 风格搜索求解</h3>
+<p>这是带有隐藏信息的博弈。给定玩家行为模型后，从 AI 视角按 POMDP 建模。POMCP 将未知局面抽样与观测历史树搜索结合，本方案再加入对手策略集合、稳健价值、手牌结构和近优性格选择。搜索在当前粒子、模型和预算内给出近似行动价值，实际水平通过战术题和完整战役评估确认。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>先把牌局讲清楚，再让 AI 在脑中试打。POMDP 负责描述“手里知道什么、可以做什么、怎样算赢”；POMCP 负责“猜几种合理牌局，往后试打，再挑当前这一手”。MCTS 是试打时展开路线的方法，UCT 帮它决定下一次多研究哪条路线。</p></aside>
+
+<div class="oracle-prose__equation"><span>问题模型</span><code>POMDP = (S, A, T, O, Z, R, γ)</code></div>
+<div class="oracle-prose__table-scroll" tabindex="0" role="region" aria-label="POMDP 七个要素如何映射到牌局"><table><caption>POMDP 七个要素如何映射到牌局</caption><thead><tr><th scope="col">符号</th><th scope="col">在本游戏中的定义</th></tr>
+</thead>
+<tbody><tr><th scope="row">S · 状态</th><td>双方手牌、生命、金币、机制区、技能次数及相关知识状态。</td></tr>
+<tr><th scope="row">A · 行动</th><td>规则允许的出牌、过牌、技能、核心和借牌等完整动作。</td></tr>
+<tr><th scope="row">T · 转移</th><td>共享规则内核执行行动，处理伤害、回牌、翻面和随机效果。</td></tr>
+<tr><th scope="row">O · 观测</th><td>按观察者权限可见的行动结果、资源、已揭示牌与手牌数量。</td></tr>
+<tr><th scope="row">Z · 观测规律</th><td>规定真实状态变化后，各方能看到哪些字段。</td></tr>
+<tr><th scope="row">R · 奖励</th><td>AI 战役获胜 +1、失败 −1；战役进行期间使用有界的续局价值估计。</td></tr>
+<tr><th scope="row">γ · 折扣</th><td>有限战役建议 γ = 1，按战役最终结果完整计算各轮收益。</td></tr>
+</tbody>
+</table>
+</div>
+<p>本方案用静态评分提供早期先验，用连续模拟评估八切等行动序列，并为过牌、机制准备等路线保留探索机会。针对多份猜牌，观测历史树统一相同信息下的后续策略；信息公开的残局交给全信息 Minimax 求解。CFR 与深度强化学习作为后续研究方向，首期先完成规则覆盖与可验证搜索，再按实测收益接入学习模型。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>静态加权像看一眼牌面就打分。出 8 的价值要连着看下一手：下一手能直接走完时，八切很值钱；后续牌型仍很堵时，它的价值就小一些。连续模拟负责把这段后续一起算清楚。</p><p>固定宽度 Beam Search 像每一轮海选只留下前三名。某条“先过牌、下一轮反击”的路线，眼前得分可能排第四，于是提前结束考察。我们为这类准备动作保留探索机会，让后面的收益也有机会被看见。</p><p>全信息 Minimax 把每份猜牌当成明牌局分别计算。假设玩家藏 A 时未来适合打法甲、藏 Q 时适合打法乙，分别求解后可能拼出一套“两边都赢”的路线，这叫策略融合。实际对局中，AI 根据当时掌握的线索统一决定打法；观测历史树让相同线索共享同一策略。</p></aside>
+
+<h3>4.2 先隔离真实信息，再建立信念</h3>
+<p>ObserverProjector 按 Public、OwnerOnly、RevealedToActor、Hidden 投影事件字段。搜索器接收观察者依法可知的信息，模拟器据此重新构造局面；玩家暗牌、隐藏能力、私有预判与未来随机结果均由合法线索和抽样假设提供。真实 GameState 与正式 RNG 由权威执行边界维护。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>给 AI 配一位按规则记牌的记录员：自己的牌、桌面上的牌和公开出现过的信息写进记录，暗牌部分交给它自己猜。搜索每次拿这份记录搭建假想牌局，模拟能力和真实玩家掌握信息的范围保持一致。</p></aside>
+
+<p>ObserverKnowledge 保存公开买牌、历史出牌、合法窥视、转移与已知牌身份。造牌、变牌和销毁会更新约束；牌面在秘密过程中被改写后，应撤销失效知识。带权粒子表示符合这些事实的未知局面，模拟玩家的私有知识也作为潜在状态处理。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>公开看见对手拿过 K，就把这条线索记下来；对手随后把 K 打出，就更新它的归属。若规则让那张牌在暗处变面，记录便改成“知道它的来源，牌面有多种可能”。AI 会随着牌局发展调整记忆。</p></aside>
+
+<div class="oracle-prose__equation"><span>信念更新</span><code>w′ⱼ ∝ wⱼ × P(观察行为 | 粒子 j, 玩家模型) × 观测一致性</code></div>
+<p>硬事实用于筛选符合观测的粒子；一次过牌作为弱行为证据，同时保留玩家主动留大牌的可能。有效粒子减少时重采样，全部失效时清除软行为证据，并根据公开事实与硬约束重新生成。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>对手过牌后，AI 会同时考虑“受跟牌条件限制而过牌”和“故意留着大牌”两种解释，再调整各自的可能性。当新事实要求重新整理判断时，就根据公开记录重新猜一批，思路和玩家重新理一遍已出牌的过程相似。</p></aside>
+
+<aside class="oracle-prose__example oracle-prose__plain-language"><strong>大白话 · 一次过牌如何改变猜测（假设数值）</strong><p>玩家最后一张是 A 或 J，先验各 50%。AI 出 K 后，假设持 J 必过、持 A 有 20% 概率主动过牌，则观察到过牌后 P(A | 过牌) = 0.5 × 0.2 ÷ (0.5 × 0.2 + 0.5 × 1) ≈ 16.7%。这些假设数值用来说明更新过程，实际行为分布通过游戏对局测量。</p>
+</aside>
+<h3>4.3 从合法动作进入树搜索</h3>
+<p>LegalActionService 为双方生成完整物理动作与声明，保留借牌来源、目标和特殊实体。证明花色、有效点数、标记、归属与所有身份效应等价后，合并相应动作。DP 拆手值提供结构先验，后续搜索比较实际结果。合法 Pass 参与比较；公开收局承诺生效时，存在合法跟牌就从跟牌候选中选择。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>先把这一回合真正能做的事情列全，再比较哪条路线更好。拿着 6、7、8、9、10、K 跟 5 时，拆手分析会提示“出 K 可以留下顺子”；搜索再结合对手回应、生命和机制，判断这份结构优势是否值得兑现。</p></aside>
+
+<p>每次真实决策先更新信念、生成候选并尝试条件化残局求解；随后反复抽取可能世界和玩家模型，执行 MCTS 的选择、扩展、模拟、回传。AI 的树节点按观测历史索引，相同可见历史的暗牌假设共享策略；新的合法观测出现后，再进入相应分支。玩家节点按自身观测从保结构、抢牌权、机制构筑与终局控制等模型抽样。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>每轮试打先猜一份合理的对手手牌，再让模拟玩家按一种打法回应。一次它偏保结构，一次它偏抢牌权，反复积累结果。两份假设中 AI 看到的过程相同时，下一步共用同一决策；对手真正亮出新信息后，再分别考虑后续。</p></aside>
+
+<div class="oracle-prose__equation"><span>树内选择示意</span><code>Q(I,a) + c√[ln(1+N(I)) / (1+N(I,a))] + βPrior(I,a)/(1+N(I,a))</code></div>
+<p>第一项利用已有价值，第二项探索访问较少的动作，第三项是随访问衰减的先验。根候选获得基础访问覆盖，后续通过渐进展开增加路线。主搜索结束后用独立成对样本复核候选，再交给性格选择；真正出牌时执行当前一步，观察真实回应后重新规划。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>UCT 像分配练习时间：表现好的路线值得深挖，尝试较少的路线也安排机会。结构评分帮助第一轮选研究方向，后续模拟结果逐渐接过判断。最后用新抽取的同一批牌局比较主要候选，再执行眼前这一手。</p></aside>
+
+<h3>4.4 用真实机制结果评估整场价值</h3>
+<p>AiSimulationAdapter 复用权威规则。八切按实际 CurrentActor 继续行动；反转按规则控制力比较；拍卖考虑印刷报价、加价和资源；胃袋、情丝、双面牌、玩家技能、核心与借牌都推演完整反制。每项机制收益通过完整结算后的状态统一计入价值。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>出 8 后，就接着模拟自己再出一手；胃袋吐牌后，就按牌实际回到谁手里继续算；反转时，就按反转后的强弱判断牌权。每个机制的好处都落到真正的后续局面里，评分沿着这份结果计算。</p></aside>
+
+<p>若一次 Apply 跨过小局结算并开始下一轮，必须在同一权威结算流程导出 RoundBoundarySnapshot。小局边界用 V_campaign，截断叶节点用依赖观测与信念的 V_leaf；二者都限制在终局值之间。模型特征涵盖剩余轮数、有效生命、恢复额度、玩家倍率与构筑威胁、经济和债务。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>把小局看成战役中的一站。早期多留金币，可能换来下一轮的选择空间；第九局守住最后一点生命，可能直接拿下整场。估值会把当前轮数、生命、经济和玩家成长放在一起比较，并在这一局刚结算的时刻记账。</p></aside>
+
+<div class="oracle-prose__equation"><span>玩家模型稳健目标</span><code>Q_base(a) = (1−η) Σₘ qₘQₘ(a) + η minₘ Qₘ(a)</code></div>
+<p>qₘ 是模型权重，在同一次搜索内冻结；η 控制对较强应对的重视程度。稳健目标的评估范围为当前玩家模型集合。当前输出效用估计，胜率解释以独立对局校准为依据。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>让同一个动作接受几位风格各异的陪练检验：既看总体表现，也给最难应付的那位留一些权重。η 越大，AI 越重视较强反击下的表现。画面里若显示价值分数，它表示当前模型下的比较结果；胜率含义由后续对局校准提供。</p></aside>
+
+<h3>4.5 性格在经过复核的好棋中发挥</h3>
+<p>已证明获胜的动作优先执行。其余候选先冻结后续策略，再用独立于主搜索的成对可能世界与随机子流复核。价值损失的单侧上界落在 ε 内时，候选进入性格选择集合；证据仍待补充时采用参考动作。ε 描述候选相对当前参考策略的估计差距。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>先认真挑出当前最有把握的路线，再找几条实测差距足够小的好路线。参考路线和备选路线用同一批新牌局重新比较，证据达到要求后交给角色挑选。遇到已有完整获胜证明的动作，直接优先兑现。</p></aside>
+
+<div class="oracle-prose__table-scroll" tabindex="0" role="region" aria-label="五类角色的近优选择偏好"><table><caption>五类角色的近优选择偏好</caption><thead><tr><th scope="col">角色</th><th scope="col">在好棋之间如何选择</th><th scope="col">具体机制落点</th></tr>
+</thead>
+<tbody><tr><th scope="row">零号站台 · 控制</th><td>保留结构与可兑现的牌权，扩大后续应对空间。</td><td>保顺子、八切、花色锁与反转。</td></tr>
+<tr><th scope="row">回声 · 防守反击</th><td>降低下行风险，利用合法信息经营可靠反控制。</td><td>情丝回牌与清除风险；关键防守果断用炸弹。</td></tr>
+<tr><th scope="row">熔坑 · 节奏压制</th><td>偏好连续施压和较短获胜路径。</td><td>完整计算胃袋 FIFO、容量、消化与吐牌后归属。</td></tr>
+<tr><th scope="row">铁库 · 资源控制</th><td>比较边际投入，保存未来购买和控制能力。</td><td>拍卖报价、押金收入、清池伤害与债务。</td></tr>
+<tr><th scope="row">图纸 · 策略变化</th><td>用可复现抽样混合近优计划，保持有目的的变化。</td><td>翻面、共享牌面、借牌与失真兑现。</td></tr>
+</tbody>
+</table>
+</div>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>若两条路线的表现接近，回声会挑更稳的，熔坑偏爱连续施压，铁库关注资源花得是否划算，图纸会在好路线里变招。它们像几位同样认真打牌、习惯各异的牌友；零号站台则作为注重结构与牌权的基准。</p></aside>
+<h3>4.6 残局、预算与正式接入</h3>
+<p>信息公开、随机性解决、动作完整时，用支持连续行动的 Alpha-Beta / Minimax 求解；未知状态可完整枚举时，在共享信息集上做带观测分支的 AND-OR 证明。预算内完成完整覆盖时输出相应胜负证明，预算耗尽时输出价值估计。小局边界之后采用启发式续局价值时，证明范围记录为该边界。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>残局能把所有相关情况都算完时，就给出对应范围的胜负证明。牌仍有多种可能、计算额度先用完时，就报告当前估计。相当于把“这些情况我已经完整验过”和“按眼下试打结果这手更好”分别讲清楚。</p></aside>
+
+<p>首版使用纯 C# Domain、单工作线程、固定排序与固定工作量。Godot 主线程负责呈现与提交，后台完成后核对 Revision、Actor、Phase、ObservationDigest；读档、暂停与退出可取消任务。正式 RNG 与模拟 RNG 分离，搜索子流只由合法观测和版本派生。旧存档保留旧策略，新局启用新版本。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>难度越高，AI 获得的试打次数越多。它在后台拿牌局快照计算，界面照常响应；算完先确认轮到谁、当前阶段和牌局版本都对得上，再提交动作。模拟使用自己的随机流，正式牌局继续按原来的进度运行。</p></aside>
+
+</section>
+<section class="oracle-prose__section" id="oracle-doc-diagrams" data-document-section="diagrams"><h2><span>05</span>设计图</h2>
+<p>三张图分别对应“整体模块如何配合”“MCTS 扮演哪一环”和“隐藏信息下如何保持公平决策”。它们描述的是同一套方案：观察约束信息，搜索比较后果，性格选择打法。</p>
+<figure class="oracle-prose__figure"><div class="oracle-prose__diagram-scroll" tabindex="0" role="region" aria-label="总体架构图，可横向滚动"><svg class="oracle-diagram" viewBox="0 0 760 698" role="img" aria-labelledby="oracle-architecture-title oracle-architecture-desc"><title id="oracle-architecture-title">从信息投影到具体出牌的总体架构</title><desc id="oracle-architecture-desc">权威状态先投影为合法观测。信念与合法动作进入 POMCP 搜索，规则模拟器、玩家策略集合和估值共同支持搜索。候选独立复核后交由性格选择，最后核对版本并提交。</desc><defs><marker id="oracle-arch-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8"></path></marker></defs><g class="oracle-diagram__edges" marker-end="url(#oracle-arch-arrow)"><path d="M380 82V111"></path><path d="M380 179V201H180V225"></path><path d="M380 179V201H580V225"></path><path d="M180 293V313H380V338"></path><path d="M580 293V313H380V338"></path><path d="M232 373H260"></path><path d="M528 373H500"></path><path d="M380 408V444"></path><path d="M380 512V541"></path><path d="M380 609V635"></path></g><g class="oracle-diagram__node"><rect x="260" y="14" width="240" height="68" rx="12"></rect><text x="380" y="43" text-anchor="middle">权威状态与已提交事件</text><text class="oracle-diagram__detail" x="380" y="63" text-anchor="middle">真实 GameState 仅留在边界</text></g><g class="oracle-diagram__node is-accent"><rect x="260" y="111" width="240" height="68" rx="12"></rect><text x="380" y="140" text-anchor="middle">按观察者投影</text><text class="oracle-diagram__detail" x="380" y="160" text-anchor="middle">公开信息 + 己方私有信息</text></g><g class="oracle-diagram__node"><rect x="70" y="225" width="220" height="68" rx="12"></rect><text x="180" y="254" text-anchor="middle">知识记忆与信念粒子</text><text class="oracle-diagram__detail" x="180" y="274" text-anchor="middle">硬约束 + 弱行为证据</text></g><g class="oracle-diagram__node"><rect x="470" y="225" width="220" height="68" rx="12"></rect><text x="580" y="254" text-anchor="middle">合法动作与结构先验</text><text class="oracle-diagram__detail" x="580" y="274" text-anchor="middle">出牌 / 技能 / 合法过牌</text></g><g class="oracle-diagram__node"><rect x="18" y="339" width="214" height="68" rx="12"></rect><text x="125" y="368" text-anchor="middle">玩家策略集合</text><text class="oracle-diagram__detail" x="125" y="388" text-anchor="middle">仅使用玩家合法观测</text></g><g class="oracle-diagram__node is-accent"><rect x="260" y="338" width="240" height="70" rx="12"></rect><text x="380" y="367" text-anchor="middle">POMCP 风格历史树搜索</text><text class="oracle-diagram__detail" x="380" y="387" text-anchor="middle">MCTS + UCT + 模拟续局</text></g><g class="oracle-diagram__node"><rect x="528" y="339" width="214" height="68" rx="12"></rect><text x="635" y="368" text-anchor="middle">权威规则与价值评估</text><text class="oracle-diagram__detail" x="635" y="388" text-anchor="middle">含战役边界与残局求解</text></g><g class="oracle-diagram__node"><rect x="260" y="444" width="240" height="68" rx="12"></rect><text x="380" y="473" text-anchor="middle">根候选独立复核</text><text class="oracle-diagram__detail" x="380" y="493" text-anchor="middle">形成有证据的近优动作集合</text></g><g class="oracle-diagram__node"><rect x="260" y="541" width="240" height="68" rx="12"></rect><text x="380" y="570" text-anchor="middle">角色性格与公开意图</text><text class="oracle-diagram__detail" x="380" y="590" text-anchor="middle">在接近最优的好棋中选择</text></g><g class="oracle-diagram__node is-accent"><rect x="230" y="635" width="300" height="49" rx="12"></rect><text x="380" y="664.5" text-anchor="middle">核对对局版本 → 提交具体动作</text></g><text class="oracle-diagram__boundary" x="32" y="151">信息边界</text><path class="oracle-diagram__divider" d="M32 192H728"></path></svg>
+</div>
+<figcaption>图 1 · 主搜索共享规则、信息和战役价值；难度控制预算，性格决定近优选择。</figcaption></figure>
+<figure class="oracle-prose__figure"><div class="oracle-prose__diagram-scroll" tabindex="0" role="region" aria-label="蒙特卡洛树搜索循环图，可横向滚动"><svg class="oracle-diagram" viewBox="0 0 760 265" role="img" aria-labelledby="oracle-search-title oracle-search-desc"><title id="oracle-search-title">MCTS 在 POMCP 中的一次模拟</title><desc id="oracle-search-desc">先抽取可能世界，再按 UCT 选择行动，扩展新观察，使用合法玩家模型和规则引擎模拟续局，最后回传长期价值。预算未用完时重复这一循环。</desc><defs><marker id="oracle-search-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8"></path></marker></defs><g class="oracle-diagram__edges" marker-end="url(#oracle-search-arrow)"><path d="M184 112H202"></path><path d="M370 112H388"></path><path d="M556 112H574"></path><path d="M658 149V196H100V149"></path></g><text class="oracle-diagram__label" x="380" y="30" text-anchor="middle">从信念中抽取一个符合观测的可能世界</text><g class="oracle-diagram__node is-accent"><rect x="16" y="75" width="168" height="74" rx="12"></rect><text x="100" y="104" text-anchor="middle">选择</text><text class="oracle-diagram__detail" x="100" y="124" text-anchor="middle">UCT 分配尝试机会</text></g><g class="oracle-diagram__node"><rect x="202" y="75" width="168" height="74" rx="12"></rect><text x="286" y="104" text-anchor="middle">扩展</text><text class="oracle-diagram__detail" x="286" y="124" text-anchor="middle">加入新的合法观测</text></g><g class="oracle-diagram__node"><rect x="388" y="75" width="168" height="74" rx="12"></rect><text x="472" y="104" text-anchor="middle">模拟</text><text class="oracle-diagram__detail" x="472" y="124" text-anchor="middle">玩家模型 + 规则续局</text></g><g class="oracle-diagram__node is-accent"><rect x="574" y="75" width="168" height="74" rx="12"></rect><text x="658" y="104" text-anchor="middle">回传</text><text class="oracle-diagram__detail" x="658" y="124" text-anchor="middle">更新次数与长期价值</text></g><text class="oracle-diagram__label" x="380" y="224" text-anchor="middle">重复至固定工作预算耗尽 → 复核候选 → 性格选择 → 执行当前一步</text></svg>
+</div>
+<figcaption>图 2 · MCTS 是推演和积累结果的核心；UCT 只负责树内分支选择。</figcaption></figure>
+<figure class="oracle-prose__figure"><div class="oracle-prose__diagram-scroll" tabindex="0" role="region" aria-label="观测历史共享示意图，可横向滚动"><svg class="oracle-diagram" viewBox="0 0 760 450" role="img" aria-labelledby="oracle-information-title oracle-information-desc"><title id="oracle-information-title">不同暗牌假设共享相同的观测历史节点</title><desc id="oracle-information-desc">玩家暗牌可能为 A 或 Q；AI 看到的历史相同时，两种假设共享同一根节点。出 K 后，按实际观察到的跟牌或过牌进入相应分支。过牌仍可能来自持有 A 的玩家。</desc><defs><marker id="oracle-info-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8"></path></marker></defs><g class="oracle-diagram__edges" marker-end="url(#oracle-info-arrow)"><path d="M184 86H260"></path><path d="M576 86H500"></path><path d="M380 120V158"></path><path d="M380 226V252H190V285"></path><path d="M380 226V252H570V285"></path></g><g class="oracle-diagram__node"><rect x="16" y="52" width="168" height="68" rx="12"></rect><text x="100" y="81" text-anchor="middle">假设世界 A</text><text class="oracle-diagram__detail" x="100" y="101" text-anchor="middle">玩家藏着 A</text></g><g class="oracle-diagram__node"><rect x="576" y="52" width="168" height="68" rx="12"></rect><text x="660" y="81" text-anchor="middle">假设世界 B</text><text class="oracle-diagram__detail" x="660" y="101" text-anchor="middle">玩家藏着 Q</text></g><g class="oracle-diagram__node is-accent"><rect x="260" y="52" width="240" height="68" rx="12"></rect><text x="380" y="81" text-anchor="middle">同一个信息节点</text><text class="oracle-diagram__detail" x="380" y="101" text-anchor="middle">AI 看到的历史相同</text></g><g class="oracle-diagram__node"><rect x="260" y="158" width="240" height="68" rx="12"></rect><text x="380" y="187" text-anchor="middle">选择：出 K</text><text class="oracle-diagram__detail" x="380" y="207" text-anchor="middle">基于同一观测选择策略</text></g><g class="oracle-diagram__node is-accent"><rect x="70" y="285" width="240" height="68" rx="12"></rect><text x="190" y="314" text-anchor="middle">观察：玩家跟牌</text><text class="oracle-diagram__detail" x="190" y="334" text-anchor="middle">用真实可见行为更新信念</text></g><g class="oracle-diagram__node is-accent"><rect x="450" y="285" width="240" height="68" rx="12"></rect><text x="570" y="314" text-anchor="middle">观察：玩家过牌</text><text class="oracle-diagram__detail" x="570" y="334" text-anchor="middle">保留持大牌却主动过牌的可能</text></g><text class="oracle-diagram__label" x="380" y="402" text-anchor="middle">按新的可见观测分支；相同观测共享同一决策策略。</text></svg>
+</div>
+<figcaption>图 3 · 观测历史树：相同观测共享策略，实际回应引出后续分支。</figcaption></figure>
+</section>
+<section class="oracle-prose__section" id="oracle-doc-expected" data-document-section="expected"><h2><span>06</span>预期结果</h2>
+<p>重构希望把合法、会接牌的脚本提升为能比较后续计划的对手。以下描述是待验证的行为预期；复杂题按实际价值验收，并接受多个价值等价的解。</p>
+<div class="oracle-prose__table-scroll" tabindex="0" role="region" aria-label="可观察的预期行为"><table><caption>可观察的预期行为</caption><thead><tr><th scope="col">场景</th><th scope="col">预期结果</th><th scope="col">判断边界</th></tr>
+</thead>
+<tbody><tr><th scope="row">保留顺子</th><td>在战役风险可控时，识别出 K 保留 6～10 顺子的价值。</td><td>八切或终局威胁可能使另一行动更好。</td></tr>
+<tr><th scope="row">连续行动与反转</th><td>把八切后的下一步和反转后的实际控制力一起比较。</td><td>以当前规则的实际触发条件为准。</td></tr>
+<tr><th scope="row">一至两张残局</th><td>增加防守预算，区分公开可证与隐藏信息估计。</td><td>样本内全胜记录为采样结果，完整覆盖后标注相应证明。</td></tr>
+<tr><th scope="row">第九局与资源</th><td>可为存活放弃局部优势，也可投入资源阻断玩家成长。</td><td>资源投入与保留统一按当前局面的战役价值衡量。</td></tr>
+<tr><th scope="row">五角色</th><td>同一强核心呈现控制、防守、压制、资源和变招差异。</td><td>已证明获胜的动作优先执行。</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+<section class="oracle-prose__section" id="oracle-doc-regression" data-document-section="regression"><h2><span>07</span>回归指标</h2>
+<p>回归指标守住规则、公平与可复现性，各项门槛全部通过后进入能力提升评估。验收记录保存规则版本、允许信息、局面前提与预算；旧 AI 的 161 项通过记录作为历史基线，新方案按相同标准建立自己的验收记录。</p>
+<div class="oracle-prose__table-scroll" tabindex="0" role="region" aria-label="回归门槛与验证方法"><table><caption>回归门槛与验证方法</caption><thead><tr><th scope="col">指标</th><th scope="col">通过标准</th><th scope="col">验证方法</th></tr>
+</thead>
+<tbody><tr><th scope="row">动作合法性 / 完备性</th><td>合法提交率达到 100%；可穷举小手牌与正式预览的完整动作集合一致。</td><td>含声明、花色、实体、借牌与特殊技能的差分。</td></tr>
+<tr><th scope="row">模拟一致性</th><td>同一动作的状态、资源、归属、下一行动者和结算边界一致。</td><td>逐动作对照权威执行，覆盖跨小局 Apply。</td></tr>
+<tr><th scope="row">信息隔离一致性</th><td>相同合法观测和配置下，替换暗牌、牌库与私有预判后，动作和诊断保持一致。</td><td>AI 与模拟玩家分别执行信息变体测试。</td></tr>
+<tr><th scope="row">随机与回放</th><td>相同输入、版本和预算动作一致；搜索前后正式 RNG 进度一致；读档完整恢复记忆。</td><td>固定预算重复运行、存档恢复与回放比较。</td></tr>
+<tr><th scope="row">关键战术</th><td>可证明题与完整求解器一致；保顺子、八切、反转、机制和残局达到既有基线。</td><td>隐信息题按明确分布与策略价值判断，允许等价解。</td></tr>
+<tr><th scope="row">证明标签</th><td>每项胜负证明均有对应信息空间与动作树的完整覆盖记录。</td><td>区分样本全胜、小局证明与完整战役证明。</td></tr>
+<tr><th scope="row">提交保护</th><td>提交均来自当前有效任务，并满足公开收局承诺。</td><td>暂停、读档、切阶段、Actor 与 Revision 变化测试。</td></tr>
+</tbody>
+</table>
+</div>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>回归像上线前核对地基：牌要出得合法，八切和反转按规则发生，读档后记得住公开线索，同一输入能重现同一动作。把这些基础逐项验收后，再比较 AI 比以前强了多少。</p></aside>
+</section>
+<section class="oracle-prose__section" id="oracle-doc-optimization" data-document-section="optimization"><h2><span>08</span>优化指标</h2>
+<p>优化评估先隔离固定手牌的决策能力，再比较完整战役。在同内容版本、角色、升天等级、经济与成对种子下，新旧 AI 对抗同一批玩家代理；代理覆盖旧启发式、结构、控制、技能构筑、随机合法策略与独立留出的强策略。双方按各自角色的合法能力行动，通过同一组玩家代理形成可比较的成绩。</p>
+<div class="oracle-prose__table-scroll" tabindex="0" role="region" aria-label="能力与成本的优化指标"><table><caption>能力与成本的优化指标</caption><thead><tr><th scope="col">指标</th><th scope="col">评估口径</th><th scope="col">目标 / 决策规则</th></tr>
+</thead>
+<tbody><tr><th scope="row">AI 战役胜率 · 主指标</th><td>按角色 × 难度分层，比较成对结果差异及置信区间。</td><td>主力代理总体提升的置信区间下界 &gt; 0；明显角色退步须定位修复。最小提升幅度待先导实验冻结。</td></tr>
+<tr><th scope="row">战术与稳健性</th><td>单局胜率、承伤、机制利用、候选覆盖、终局误判与留出强策略表现。</td><td>在相同预算下比较，覆盖多种强度与打法的玩家模型。</td></tr>
+<tr><th scope="row">决策时延</th><td>参考硬件 p50 / p95 / p99，包含动作生成、粒子、模拟与候选复核。</td><td>待验证目标：标准 p95 ≤ 300 ms；高手临界 p95 ≤ 900 ms。</td></tr>
+<tr><th scope="row">成本与回退</th><td>转移次数、规则预览、候选展开、DP 节点、峰值内存与预算回退率。</td><td>先测基线再冻结内存和回退阈值；提速优先优化规则内核、缓存与分支管理。</td></tr>
+<tr><th scope="row">角色可辨识度</th><td>同规则同局面同预算下，测风险、资源消耗、牌权与策略多样性，再做人名隐藏的试玩。</td><td>区分机制差异与性格差异；风格通过近优好棋之间的选择体现。</td></tr>
+</tbody>
+</table>
+</div>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>给旧 AI 和新 AI 安排同一套考卷、同一组陪练，再按角色和难度比较成绩。主要看 AI 赢下整场的比例，同时看思考多久、占多少内存、各角色打起来是否有辨识度。300 ms 和 900 ms 是准备拿实测去检验的目标。</p></aside>
+<h3>计算预算的实验起点</h3>
+<div class="oracle-prose__table-scroll" tabindex="0" role="region" aria-label="候选预算 · 待性能实测"><table><caption>候选预算 · 待性能实测</caption><thead><tr><th scope="col">档位</th><th scope="col">信念粒子</th><th scope="col">整个决策的模拟转移额度</th></tr>
+</thead>
+<tbody><tr><th scope="row">入门</th><td>32</td><td>约 1,500</td></tr>
+<tr><th scope="row">标准</th><td>64</td><td>约 6,000</td></tr>
+<tr><th scope="row">高手</th><td>128</td><td>约 24,000</td></tr>
+<tr><th scope="row">临界残局</th><td>最多 256</td><td>候选上限约 80,000，含独立证明上限</td></tr>
+</tbody>
+</table>
+</div>
+<p>额度由整个决策共享，包含所有粒子、玩家模型内部模拟与候选复核。预算升档依据可见的临界状态。调参集与最终验收集按种子和内容组合隔离，样本量由先导实验方差确定；新算法的胜率与耗时将在实施阶段形成实测报告。</p>
+<aside class="oracle-prose__plain-language"><strong>大白话</strong><p>标准档的 6,000 次转移，是整次思考共用的额度。猜牌、模拟玩家应对和最后复核都从里面扣，计算安排会在这些环节之间分配。先拿这组额度跑基准，再依据真实耗时和对局成绩调整。</p></aside>
+
+</section>
+<section class="oracle-prose__section" id="oracle-doc-delivery" data-document-section="delivery"><h2><span>09</span>实施与依据</h2>
+<p>阶段 A 先完成可见性契约、记忆、动作服务、权威模拟和结算边界；阶段 B 接入结构估值、信念历史树、多玩家模型与零号站台；阶段 C 补全五角色、玩家反制、独立复核和信息残局；阶段 D 冻结预算，完成后台取消、存档版本、影子决策与灰度新局。各阶段都以测试和测量决定是否前进。</p>
+<p>核心拟新增组件为 AiDecisionService、ObserverProjector、BeliefUpdater、WorldSampler、LegalActionService、AiSimulationAdapter、BeliefTreeSearch、OpponentPolicyEnsemble、CampaignValueEvaluator、InformationEndgameSolver 与 PersonalitySelector。Think 接收观测、知识、配置和取消令牌，输出具体动作、观测摘要与诊断，由 Runtime 复核并提交到正式对局。</p>
+<p>后续积累完整搜索轨迹和战役结果后，可训练动作先验与小型价值模型。模型输入采用合法的观察者信息。模型加载成功且内容版本一致时启用学习估值，其余情况使用同版本启发式，规则搜索持续运行。</p>
+<div class="oracle-prose__sources"><h3>来源与适用范围</h3>
+<p>方案内容来自 2026-10-16 的“分析游戏 AI 出牌逻辑”讨论及《AI 出牌决策重构技术方案 v0.2》，并补入同一会话对 POMDP、POMCP、MCTS 的后续解释。游戏行为与版本按当时分析记录描述，本文交付方案整理与评审依据，新的性能测量安排在实施阶段。</p>
+<p><a href="https://proceedings.neurips.cc/paper/2010/hash/edfbe1afcf9246bb0d40eb4d8027d90f-Abstract.html" target="_blank" rel="noreferrer">Silver &amp; Veness · POMCP · NIPS 2010</a> 提供算法出处；<a href="https://sites.ualberta.ca/~szepesva/papers/ecml06.pdf" target="_blank" rel="noreferrer">Kocsis &amp; Szepesvári · UCT · ECML 2006</a> 说明探索与利用的树内选择。五角色、稳健目标、预算和游戏接入是本项目的工程提案，整体效果须独立验证。</p>
+</div>
+</section>
+<footer class="oracle-prose__end">文档结束 · 选中正文中的文字即可评论</footer>

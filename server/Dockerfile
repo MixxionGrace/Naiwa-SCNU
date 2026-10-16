@@ -6,6 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY src ./src
+COPY documents ./documents
 
 RUN mkdir -p /app/data && chown -R node:node /app
 
@@ -17,6 +18,7 @@ ENV NODE_ENV=production \
     DATA_FILE=/app/data/groups.json \
     APPLICATIONS_FILE=/app/data/applications.json \
     FEEDBACKS_FILE=/app/data/feedbacks.json \
+    CHAT_ROOM_FILE=/app/data/chat-room.json \
     ACTIVITIES_FILE=/app/data/activities.json \
     ACTIVITY_APPLICATIONS_FILE=/app/data/activity-applications.json \
     ACTIVITY_IMAGES_DIR=/app/data/activity-images \

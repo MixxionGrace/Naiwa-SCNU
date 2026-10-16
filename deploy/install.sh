@@ -18,6 +18,7 @@ NGINX_CONFIG="$APP_ROOT/nginx/default.conf"
 SEED_FILE="$BUNDLE_DIR/seed/groups.json"
 APPLICATIONS_SEED_FILE="$BUNDLE_DIR/seed/applications.json"
 FEEDBACKS_SEED_FILE="$BUNDLE_DIR/seed/feedbacks.json"
+CHAT_ROOM_SEED_FILE="$BUNDLE_DIR/seed/chat-room.seed.json"
 ACTIVITIES_SEED_FILE="$BUNDLE_DIR/seed/activities.json"
 ACTIVITY_APPLICATIONS_SEED_FILE="$BUNDLE_DIR/seed/activity-applications.json"
 TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -28,9 +29,11 @@ for required_path in \
   "$BUNDLE_DIR/dist/assets" \
   "$BUNDLE_DIR/server/Dockerfile" \
   "$BUNDLE_DIR/server/package-lock.json" \
+  "$BUNDLE_DIR/server/documents/oracle-design.html" \
   "$SEED_FILE" \
   "$APPLICATIONS_SEED_FILE" \
   "$FEEDBACKS_SEED_FILE" \
+  "$CHAT_ROOM_SEED_FILE" \
   "$ACTIVITIES_SEED_FILE" \
   "$ACTIVITY_APPLICATIONS_SEED_FILE" \
   "$NGINX_CONFIG"; do
@@ -55,6 +58,9 @@ if [[ ! -f "$DATA_DIR/applications.json" ]]; then
 fi
 if [[ ! -f "$DATA_DIR/feedbacks.json" ]]; then
   sudo install -m 0640 "$FEEDBACKS_SEED_FILE" "$DATA_DIR/feedbacks.json"
+fi
+if [[ ! -f "$DATA_DIR/chat-room.json" ]]; then
+  sudo install -m 0640 "$CHAT_ROOM_SEED_FILE" "$DATA_DIR/chat-room.json"
 fi
 if [[ ! -f "$DATA_DIR/activities.json" ]]; then
   sudo install -m 0640 "$ACTIVITIES_SEED_FILE" "$DATA_DIR/activities.json"
@@ -209,6 +215,7 @@ echo "Web root: $WEB_ROOT"
 echo "API data: $DATA_DIR/groups.json"
 echo "Application data: $DATA_DIR/applications.json"
 echo "Feedback data: $DATA_DIR/feedbacks.json"
+echo "Chat room data: $DATA_DIR/chat-room.json"
 echo "Activity data: $DATA_DIR/activities.json"
 echo "Activity application data: $DATA_DIR/activity-applications.json"
 if [[ "$IMAGE_STORAGE_MODE" == cos ]]; then

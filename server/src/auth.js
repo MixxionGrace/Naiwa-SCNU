@@ -1,9 +1,31 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 
-const ADMIN_USERNAME = 'MixxionGrace'
-const ADMIN_PASSWORD_SALT = 'd875ba91ae87caf6dcdcbb5630feecae'
-const ADMIN_PASSWORD_HASH =
-  'f7d0f1bb6813ccb31c462fc4591c783931af5239f23da8035433bce81641f7e827bfd1a68d632ec7ccd846e209a776930d2266049deebb60a054551a8da6d137'
+const ACCOUNTS = Object.freeze([
+  {
+    username: 'MixxionGrace',
+    role: 'superadmin',
+    passwordSalt: 'd875ba91ae87caf6dcdcbb5630feecae',
+    passwordHash:
+      'f7d0f1bb6813ccb31c462fc4591c783931af5239f23da8035433bce81641f7e827bfd1a68d632ec7ccd846e209a776930d2266049deebb60a054551a8da6d137',
+  },
+  {
+    username: 'luodan',
+    role: 'user',
+    passwordSalt: '39a913ebe77551591f29c0b68291f59d',
+    passwordHash:
+      'fbbb58f6187abb0b4530f6feeafdc01aa532988e83a5819936fa5b174684f94e616d169353825f320dc7a961265976c0fcb8e826b7e2d4c8da30887f0d678e4d',
+  },
+  {
+    username: 'renyusheng',
+    role: 'user',
+    passwordSalt: '9d0a90b489c1647615a0f149e958d956',
+    passwordHash:
+      '2b93d1bd9f2cb88b2c7ce2a110b6556f6c6b1e54011d474669573f306394532d2990b201e716031ed533c84b27545e17ce1983d0bba8299b7867c464911b034d',
+  },
+])
+const DUMMY_PASSWORD_SALT = '3c7b58674fe1b4d2df1e8164275efe80'
+const DUMMY_PASSWORD_HASH =
+  '595b016668a233aaf3e30abfa6a0541348aec22b8a15c81c8beb88e4cf19d3eeb7899d69b224ca94d8cefa3fe053cee13fcdd1c9d971baee03713399658268cf'
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000
 const LOGIN_WINDOW_MS = 15 * 60 * 1000
 const MAX_LOGIN_ATTEMPTS = 5
@@ -24,16 +46,21 @@ function safeStringEqual(first, second) {
 }
 
 function verifyCredentials(username, password) {
-  const usernameMatches = safeStringEqual(username, ADMIN_USERNAME)
+  const account = ACCOUNTS.find((candidate) =>
+    safeStringEqual(username, candidate.username),
+  )
   const suppliedHash = scryptSync(
     String(password ?? ''),
-    ADMIN_PASSWORD_SALT,
+    account?.passwordSalt || DUMMY_PASSWORD_SALT,
     64,
   )
-  const expectedHash = Buffer.from(ADMIN_PASSWORD_HASH, 'hex')
+  const expectedHash = Buffer.from(
+    account?.passwordHash || DUMMY_PASSWORD_HASH,
+    'hex',
+  )
   const passwordMatches = timingSafeEqual(suppliedHash, expectedHash)
 
-  return usernameMatches && passwordMatches
+  return account && passwordMatches ? account : null
 }
 
 function cleanupSessions() {
@@ -56,7 +83,7 @@ function getAttemptRecord(ip) {
   return current
 }
 
-export function login({ username, password, ip }) {
+export function login({ username, password, ip, portal = '' }) {
   const attempt = getAttemptRecord(ip)
 
   if (attempt.count >= MAX_LOGIN_ATTEMPTS) {
@@ -68,9 +95,15 @@ export function login({ username, password, ip }) {
     }
   }
 
-  if (!verifyCredentials(username, password)) {
+  const account = verifyCredentials(username, password)
+  if (!account) {
     attempt.count += 1
     return { ok: false, status: 401, message: '账号或密码错误。' }
+  }
+
+  if (portal === 'admin' && account.role !== 'superadmin') {
+    loginAttempts.delete(ip)
+    return { ok: false, status: 403, message: '该账号没有管理端权限。' }
   }
 
   loginAttempts.delete(ip)
@@ -78,13 +111,17 @@ export function login({ username, password, ip }) {
 
   const token = randomBytes(32).toString('hex')
   const expiresAt = Date.now() + SESSION_TTL_MS
-  sessions.set(token, { username: ADMIN_USERNAME, expiresAt })
+  sessions.set(token, {
+    username: account.username,
+    role: account.role,
+    expiresAt,
+  })
 
   return {
     ok: true,
     token,
     expiresAt: new Date(expiresAt).toISOString(),
-    user: { username: ADMIN_USERNAME },
+    user: { username: account.username, role: account.role },
   }
 }
 
@@ -94,21 +131,44 @@ export function getBearerToken(ctx) {
   return match?.[1] || ''
 }
 
-export async function requireAdmin(ctx, next) {
+function resolveSession(ctx) {
   const token = getBearerToken(ctx)
   const session = token ? sessions.get(token) : null
 
   if (!session || session.expiresAt <= Date.now()) {
     if (token) sessions.delete(token)
+    return { token: '', session: null }
+  }
+
+  return { token, session }
+}
+
+export async function requireSession(ctx, next) {
+  const { token, session } = resolveSession(ctx)
+  if (!session) {
     ctx.status = 401
     ctx.body = { error: '登录已过期，请重新登录。' }
     return
   }
 
-  ctx.state.admin = session
-  ctx.state.adminToken = token
+  ctx.state.user = session
+  ctx.state.authToken = token
   ctx.set('Cache-Control', 'no-store')
   await next()
+}
+
+export async function requireAdmin(ctx, next) {
+  await requireSession(ctx, async () => {
+    if (ctx.state.user.role !== 'superadmin') {
+      ctx.status = 403
+      ctx.body = { error: '该账号没有管理端权限。' }
+      return
+    }
+
+    ctx.state.admin = ctx.state.user
+    ctx.state.adminToken = ctx.state.authToken
+    await next()
+  })
 }
 
 export function logout(token) {

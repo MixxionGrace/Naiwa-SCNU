@@ -1,0 +1,729 @@
+.oracle-login-page,
+.oracle-room {
+  --oracle-ink: #1f2329;
+  --oracle-muted: #646a73;
+  --oracle-paper: #eef1f6;
+  --oracle-surface: #fff;
+  --oracle-line: #e2e5eb;
+  --oracle-accent: #3370ff;
+  --oracle-accent-dark: #245bdb;
+  --oracle-success: #22a06b;
+  min-height: 100svh;
+  background: var(--oracle-paper);
+  color: var(--oracle-ink);
+  font-family: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+.oracle-login-page *,
+.oracle-room * {
+  box-sizing: border-box;
+}
+
+.oracle-login-page button,
+.oracle-login-page input,
+.oracle-room button,
+.oracle-room textarea {
+  font: inherit;
+}
+
+.oracle-login-page button:focus-visible,
+.oracle-login-page input:focus-visible,
+.oracle-room button:focus-visible,
+.oracle-room textarea:focus-visible {
+  outline: 3px solid rgba(51, 112, 255, 0.28);
+  outline-offset: 2px;
+}
+
+.oracle-login-page {
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(51, 112, 255, 0.18), transparent 30%),
+    radial-gradient(circle at 82% 78%, rgba(94, 195, 167, 0.12), transparent 28%),
+    #e9edf5;
+}
+
+.oracle-login {
+  position: relative;
+  display: grid;
+  width: min(960px, 100%);
+  grid-template-columns: 120px minmax(250px, 1fr) minmax(290px, 0.8fr);
+  align-items: center;
+  gap: 34px;
+  padding: 48px;
+  overflow: hidden;
+  border: 1px solid rgba(31, 35, 41, 0.08);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 28px 80px rgba(31, 45, 74, 0.16);
+}
+
+.oracle-login::before {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  color: #8a9099;
+  font: 700 9px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.16em;
+  content: 'AUTHORIZATION REQUIRED / 2026';
+}
+
+.oracle-login__brand {
+  position: relative;
+  display: grid;
+  width: 104px;
+  height: 104px;
+  place-items: center;
+  border: 2px solid #1f2329;
+  border-radius: 50%;
+  font: 800 32px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.oracle-login__brand i {
+  position: absolute;
+  width: 134px;
+  border-top: 2px solid #3370ff;
+  transform: rotate(-27deg);
+}
+
+.oracle-login__copy > span,
+.oracle-pane-heading span,
+.oracle-document__annotation > header span,
+.oracle-delete-dialog > span {
+  color: var(--oracle-accent-dark);
+  font: 750 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.16em;
+}
+
+.oracle-login__copy h1 {
+  margin: 10px 0 14px;
+  font: 800 clamp(42px, 6vw, 72px)/0.94 Inter, 'PingFang SC', sans-serif;
+  letter-spacing: -0.055em;
+}
+
+.oracle-login__copy p {
+  max-width: 400px;
+  margin: 0;
+  color: var(--oracle-muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.oracle-login__form {
+  display: grid;
+  gap: 15px;
+  padding: 24px;
+  border-left: 1px solid #e0e3e8;
+}
+
+.oracle-login__form label {
+  display: grid;
+  gap: 7px;
+}
+
+.oracle-login__form label > span {
+  color: var(--oracle-muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+
+.oracle-login__form input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #d7dbe3;
+  border-radius: 12px;
+  background: #f7f8fa;
+  color: var(--oracle-ink);
+}
+
+.oracle-login__form > button {
+  min-height: 46px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--oracle-accent);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.oracle-login__form > button:hover:not(:disabled) {
+  background: var(--oracle-accent-dark);
+}
+
+.oracle-login__form > button:disabled {
+  cursor: wait;
+  opacity: 0.56;
+}
+
+.oracle-back-link {
+  position: absolute;
+  bottom: 18px;
+  left: 18px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #747b85;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.oracle-back-link:hover {
+  background: #f0f2f5;
+}
+
+.oracle-form-error,
+.oracle-global-error,
+.oracle-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e7a59e;
+  border-radius: 12px;
+  background: #fff1f0;
+  color: #b42318;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.oracle-room {
+  display: grid;
+  height: 100svh;
+  grid-template-rows: auto auto 1fr;
+  overflow: hidden;
+  background: #e9edf3;
+}
+
+.oracle-room__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 64px;
+  margin: 12px 16px 0;
+  padding: 10px 16px;
+  border-radius: 18px;
+  background: #1f2737;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(28, 37, 54, 0.16);
+}
+
+.oracle-room__header > div,
+.oracle-room__session {
+  display: flex;
+  align-items: center;
+}
+
+.oracle-room__header > div:first-child {
+  gap: 12px;
+}
+
+.oracle-room__header strong,
+.oracle-room__header small {
+  display: block;
+}
+
+.oracle-room__header strong {
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.oracle-room__header small {
+  margin-top: 4px;
+  color: #aeb6c4;
+  font: 650 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.13em;
+}
+
+.oracle-room__monogram {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 50%;
+  font: 800 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.oracle-room__session {
+  gap: 9px;
+}
+
+.oracle-room__session > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.oracle-room__session > span i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #69d69e;
+}
+
+.oracle-room__session > small {
+  margin: 0 8px 0 0;
+  color: #aeb6c4;
+}
+
+.oracle-room__session button {
+  padding: 8px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #e8ebf0;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.oracle-room__session button:hover {
+  border-color: #8fb0ff;
+  color: #fff;
+}
+
+.oracle-global-error,
+.oracle-notice {
+  position: fixed;
+  z-index: 30;
+  top: 88px;
+  left: 50%;
+  width: min(560px, calc(100% - 32px));
+  transform: translateX(-50%);
+  box-shadow: 0 10px 28px rgba(31, 45, 74, 0.14);
+}
+
+.oracle-notice {
+  border-color: #8fd2b5;
+  background: #edfff7;
+  color: #166b49;
+}
+
+.oracle-mobile-tabs {
+  display: none;
+}
+
+.oracle-room__workspace {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(330px, 0.68fr) minmax(590px, 1.32fr);
+  gap: 16px;
+  padding: 16px;
+}
+
+.oracle-chat,
+.oracle-plan {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(31, 35, 41, 0.07);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(31, 45, 74, 0.08);
+}
+
+.oracle-chat {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.oracle-pane-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.oracle-pane-heading h1 {
+  margin: 6px 0 0;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.oracle-pane-heading > small {
+  color: var(--oracle-muted);
+  font-size: 11px;
+}
+
+.oracle-chat__messages {
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 18px 28px;
+  background: #f6f7f9;
+}
+
+.oracle-message {
+  position: relative;
+  width: min(88%, 520px);
+  margin: 0 0 15px;
+  padding: 13px 14px 11px;
+  border: 1px solid #e2e5eb;
+  border-radius: 16px 16px 16px 5px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgba(31, 45, 74, 0.05);
+}
+
+.oracle-message.is-mine {
+  margin-left: auto;
+  border-color: var(--oracle-accent);
+  border-radius: 16px 16px 5px 16px;
+  background: var(--oracle-accent);
+  color: #fff;
+}
+
+.oracle-message header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.oracle-message header strong {
+  font-size: 11px;
+}
+
+.oracle-message header span,
+.oracle-document-comment footer b {
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: #8a5cf5;
+  color: #fff;
+  font: 800 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.oracle-message time {
+  margin-left: auto;
+  color: #969da7;
+  font-size: 9px;
+}
+
+.oracle-message.is-mine time {
+  color: #d7e2ff;
+}
+
+.oracle-message > p {
+  margin: 9px 0 2px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.oracle-message > button {
+  display: block;
+  margin: 6px 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #b53d36;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.oracle-message.is-mine > button {
+  color: #dbe5ff;
+}
+
+.oracle-empty {
+  display: grid;
+  min-height: 160px;
+  place-items: center;
+  align-content: center;
+  color: #888f99;
+  text-align: center;
+  font-size: 12px;
+}
+
+.oracle-empty strong {
+  color: #3d424a;
+  font-size: 20px;
+}
+
+.oracle-empty p {
+  margin: 8px 0 0;
+}
+
+.oracle-chat__composer {
+  padding: 14px 16px 16px;
+  border-top: 1px solid #edf0f4;
+  background: #fff;
+}
+
+.oracle-chat__composer textarea,
+.oracle-document__comment-form textarea {
+  width: 100%;
+  resize: none;
+  border: 1px solid #d9dde5;
+  border-radius: 12px;
+  background: #f7f8fa;
+  color: var(--oracle-ink);
+  line-height: 1.55;
+}
+
+.oracle-chat__composer textarea {
+  min-height: 72px;
+  padding: 11px 12px;
+}
+
+.oracle-chat__composer > div,
+.oracle-document__comment-form > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+}
+
+.oracle-chat__composer small,
+.oracle-document__comment-form small {
+  color: #8a9099;
+  font-size: 9px;
+}
+
+.oracle-chat__composer button,
+.oracle-document__comment-form button {
+  min-width: 86px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--oracle-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.oracle-chat__composer button:disabled,
+.oracle-document__comment-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+
+.oracle-dialog-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(22, 29, 43, 0.64);
+  backdrop-filter: blur(5px);
+}
+
+.oracle-delete-dialog {
+  width: min(430px, 100%);
+  padding: 26px;
+  border: 1px solid rgba(31, 35, 41, 0.1);
+  border-radius: 20px;
+  background: #fff;
+  color: var(--oracle-ink);
+  box-shadow: 0 22px 60px rgba(16, 24, 40, 0.22);
+}
+
+.oracle-delete-dialog h2 {
+  margin: 7px 0;
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+.oracle-delete-dialog > p {
+  color: var(--oracle-muted);
+  font-size: 12px;
+}
+
+.oracle-delete-dialog blockquote {
+  max-height: 130px;
+  margin: 16px 0;
+  padding: 12px;
+  overflow: auto;
+  border: 0;
+  border-left: 3px solid #9ab7ff;
+  border-radius: 0 10px 10px 0;
+  background: #f3f6fb;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.oracle-delete-dialog > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.oracle-delete-dialog button {
+  padding: 9px 14px;
+  border: 1px solid #d8dce3;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--oracle-ink);
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.oracle-delete-dialog button.is-danger {
+  border-color: #d94b43;
+  background: #d94b43;
+  color: #fff;
+}
+
+@media (max-width: 980px) {
+  .oracle-login {
+    grid-template-columns: 90px 1fr;
+  }
+
+  .oracle-login__brand {
+    width: 82px;
+    height: 82px;
+    font-size: 25px;
+  }
+
+  .oracle-login__brand i {
+    width: 108px;
+  }
+
+  .oracle-login__form {
+    grid-column: 1 / -1;
+    border-top: 1px solid #e0e3e8;
+    border-left: 0;
+  }
+
+  .oracle-room__header {
+    margin: 8px 10px 0;
+    padding: 10px 14px;
+    border-radius: 14px;
+  }
+
+  .oracle-room__session > small,
+  .oracle-room__session button:first-of-type {
+    display: none;
+  }
+
+  .oracle-mobile-tabs {
+    position: static;
+    inset: auto;
+    z-index: auto;
+    display: grid;
+    width: auto;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    margin: 8px 10px 0;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #dde2ea;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 5px 16px rgba(31, 45, 74, 0.06);
+    backdrop-filter: none;
+  }
+
+  .oracle-mobile-tabs button {
+    min-height: 43px;
+    border: 0;
+    border-radius: 11px;
+    background: transparent;
+    color: #717884;
+    font-size: 11px;
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  .oracle-mobile-tabs button.is-active {
+    background: var(--oracle-accent);
+    color: #fff;
+    box-shadow: none;
+  }
+
+  .oracle-room__workspace {
+    display: block;
+    padding: 10px;
+    overflow: hidden;
+  }
+
+  .oracle-chat,
+  .oracle-plan {
+    display: none;
+    height: 100%;
+    border-radius: 16px;
+  }
+
+  .oracle-chat.is-mobile-active {
+    display: grid;
+  }
+
+}
+
+@media (max-width: 640px) {
+  .oracle-login-page {
+    padding: 14px;
+  }
+
+  .oracle-login {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    padding: 56px 22px 50px;
+  }
+
+  .oracle-login::before {
+    right: 12px;
+    font-size: 8px;
+  }
+
+  .oracle-login__brand {
+    display: none;
+  }
+
+  .oracle-login__form {
+    grid-column: auto;
+    padding: 18px 0 0;
+  }
+
+  .oracle-room__header strong {
+    font-size: 14px;
+  }
+
+  .oracle-room__header small {
+    font-size: 7px;
+  }
+
+  .oracle-room__session {
+    gap: 6px;
+  }
+
+  .oracle-room__session > span {
+    max-width: 96px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+  }
+
+  .oracle-room__session button {
+    padding: 7px 9px;
+  }
+
+  .oracle-pane-heading {
+    padding: 18px 16px 15px;
+  }
+
+  .oracle-pane-heading h1 {
+    font-size: 27px;
+  }
+
+  .oracle-chat__messages {
+    padding: 14px 12px 20px;
+  }
+
+  .oracle-message {
+    width: 92%;
+  }
+
+}

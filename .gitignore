@@ -10,3 +10,5 @@ dist
 cos.env
 server/data/*.tmp
 server/data/metrics.json
+cosSecret.yaml
+server/data/chat-room.json

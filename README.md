@@ -1,6 +1,6 @@
 # 华南奶蛙师范大学
 
-一个使用 React + Vite 与 Koa 制作的前后端分离项目。前台包含首页、关于我们、同好群查询、同好活动广场和意见反馈；管理端通过 `/#admin` 直接访问，不在前台展示入口。
+一个使用 React + Vite 与 Koa 制作的前后端分离项目。前台包含首页、关于我们、同好群查询、同好活动广场和意见反馈；管理端通过 `/#admin` 直接访问，不在前台展示入口。另有不出现在导航中的内部协作页 `/#oracle-room`，用于讨论游戏 AI 出牌逻辑。
 
 ## 本地运行
 
@@ -24,7 +24,9 @@ Vite 会在开发环境把 `/api` 代理到 `127.0.0.1:3001`。
 - 公开查询：`GET /api/groups`
 - 宣群重复校验：`GET /api/group-applications/check?qq=<群号>`
 - 提交宣群申请：`POST /api/group-applications`
-- 管理登录：`POST /api/auth/login`
+- 统一登录：`POST /api/auth/login`，通过 `portal` 区分 `admin` 与 `chat`
+- 当前会话：`GET /api/auth/me`
+- 内部协作室：`/api/chat/room`、`/api/chat/messages`、`/api/chat/document` 与 `/api/chat/comments`
 - 管理 CRUD：`/api/admin/groups`
 - 待审核申请：`/api/admin/applications`，支持编辑、通过和拒绝
 - 公开活动：`GET /api/activities`
@@ -33,12 +35,13 @@ Vite 会在开发环境把 `/api` 代理到 `127.0.0.1:3001`。
 - 活动图片：管理端通过 `POST /api/admin/activity-images` 上传，公开访问路径为 `/api/activity-images/<文件名>`
 - 活动审核：`/api/admin/activity-applications`，支持编辑、通过和拒绝
 - 意见反馈：前台通过 `POST /api/feedbacks` 提交；管理端通过 `/api/admin/feedbacks` 查看、搜索并更新处理状态
-- 管理请求需携带 `Authorization: Bearer <token>`
+- 管理与协作请求均需携带 `Authorization: Bearer <token>`；普通成员无权访问任何 `/api/admin/*` 接口
 - 群资料默认保存在 `server/data/groups.json`，可通过 `DATA_FILE` 指定其他文件
 - 宣群申请默认保存在 `server/data/applications.json`，可通过 `APPLICATIONS_FILE` 指定其他文件；审核完成后会保留为审核历史
 - 只有审核通过的申请会写入群资料并展示在前台；申请人 QQ 不会通过公开接口返回
 - 公开活动默认保存在 `server/data/activities.json`，待审活动保存在 `server/data/activity-applications.json`；申请人 QQ 只保留在待审活动中
 - 意见反馈默认保存在 `server/data/feedbacks.json`，可通过 `FEEDBACKS_FILE` 指定其他文件；反馈列表与联系 QQ 仅管理端可读取
+- 协作室展示带术语表、架构图与验证指标的只读技术文档；正文由 `server/documents/oracle-design.html` 维护，通过需要登录的 `GET /api/chat/document` 加载，不打包到公开前端脚本。所有角色均不能通过页面或 `PUT /api/chat/document` 编辑正文。消息与选中文字评论默认保存在 `server/data/chat-room.json`，可通过 `CHAT_ROOM_FILE` 指定其他文件；评论记录章节与文档版本，成员可删除自己的消息与评论，系统管理员可删除全部成员内容。原编辑器中已保存的草稿原样保留，但不再用于正文展示
 - 活动图片在配置腾讯云 COS 后会写入 COS，公开访问仍使用 `/api/activity-images/<文件名>` 同源地址；COS 可保持私有读写，也不需要配置浏览器 CORS
 - 未配置 COS 时，活动图片默认保存在 `server/data/activity-images/`；首次启用 COS 部署时，脚本会先迁移旧图片再切换后端
 - COS 模式只读写 COS，本地模式只读写本地目录；迁移后的本地图片不会自动删除，可继续作为备份

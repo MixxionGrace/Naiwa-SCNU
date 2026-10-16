@@ -2,13 +2,22 @@ import Koa from 'koa'
 import Router from '@koa/router'
 import bodyParser from 'koa-bodyparser'
 import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
 import {
   ActivityImageStore,
   isActivityImageUrl,
 } from './activity-image-store.js'
 import { ActivityApplicationStore, ActivityStore } from './activity-store.js'
 import { ApplicationStore } from './application-store.js'
-import { getBearerToken, login, logout, requireAdmin } from './auth.js'
+import {
+  getBearerToken,
+  login,
+  logout,
+  requireAdmin,
+  requireSession,
+} from './auth.js'
+import { ChatRoomStore } from './chat-store.js'
+import { ORACLE_DOCUMENT, ORACLE_DOCUMENT_SECTIONS } from './oracle-document.js'
 import { FeedbackStore } from './feedback-store.js'
 import { MetricsStore } from './metrics-store.js'
 import { GroupStore } from './store.js'
@@ -93,6 +102,40 @@ function validateFeedbackPayload(body) {
   }
 
   return { category, content, contactQq }
+}
+
+// Only trusted, version-controlled markup is served through this authenticated route.
+const oracleDocumentHtml = readFileSync(new URL('../documents/oracle-design.html', import.meta.url), 'utf8')
+
+function validateChatText(body, { field = 'content', maximum = 1000 } = {}) {
+  const content = String(body?.[field] ?? '').trim()
+  if (!content || content.length > maximum) {
+    const error = new Error(`内容需为 1–${maximum} 个字符。`)
+    error.status = 422
+    error.fields = { [field]: error.message }
+    throw error
+  }
+  return content
+}
+
+function validateChatCommentPayload(body) {
+  const content = validateChatText(body, { maximum: 2000 })
+  const quote = String(body?.quote ?? '').trim()
+  const sectionId = String(body?.sectionId ?? '')
+  const documentVersion = String(body?.documentVersion ?? '')
+  if (!quote || quote.length > 500) {
+    const error = new Error('请先选择 1–500 个字符的文档内容。')
+    error.status = 422
+    error.fields = { quote: error.message }
+    throw error
+  }
+  if (!ORACLE_DOCUMENT_SECTIONS.some((section) => section.id === sectionId)) {
+    throw createApiError(422, '请从技术文档中选择需要评论的内容。')
+  }
+  if (documentVersion !== ORACLE_DOCUMENT.version) {
+    throw createApiError(409, '技术文档已更新，请刷新后重新选择内容评论。')
+  }
+  return { content, quote, sectionId, documentVersion }
 }
 
 const validActivityModes = new Set(['online', 'offline'])
@@ -259,6 +302,7 @@ export function createApp({
   metricsStore = new MetricsStore(),
   applicationStore = new ApplicationStore(),
   feedbackStore = new FeedbackStore(),
+  chatStore = new ChatRoomStore(),
   activityStore = new ActivityStore(),
   activityApplicationStore = new ActivityApplicationStore(),
   activityImageStore = new ActivityImageStore(),
@@ -453,6 +497,7 @@ export function createApp({
     const result = login({
       username: ctx.request.body?.username,
       password: ctx.request.body?.password,
+      portal: ctx.request.body?.portal,
       ip: ctx.ip,
     })
 
@@ -466,8 +511,91 @@ export function createApp({
     ctx.body = result
   })
 
-  router.post('/api/auth/logout', requireAdmin, (ctx) => {
+  router.get('/api/auth/me', requireSession, (ctx) => {
+    ctx.body = {
+      user: {
+        username: ctx.state.user.username,
+        role: ctx.state.user.role,
+      },
+      expiresAt: new Date(ctx.state.user.expiresAt).toISOString(),
+    }
+  })
+
+  router.post('/api/auth/logout', requireSession, (ctx) => {
     logout(getBearerToken(ctx))
+    ctx.body = { ok: true }
+  })
+
+  const presentChatItem = (item, user) => ({
+    ...item,
+    canDelete:
+      user.role === 'superadmin' || item.authorUsername === user.username,
+  })
+
+  router.get('/api/chat/room', requireSession, async (ctx) => {
+    const room = await chatStore.snapshot({ messageLimit: ctx.query.messageLimit })
+    const user = {
+      username: ctx.state.user.username,
+      role: ctx.state.user.role,
+    }
+    ctx.body = {
+      user,
+      messages: room.messages.map((item) => presentChatItem(item, user)),
+      comments: room.comments.map((item) => presentChatItem(item, user)),
+      document: room.document,
+    }
+  })
+
+  router.post('/api/chat/messages', requireSession, async (ctx) => {
+    const content = validateChatText(ctx.request.body)
+    const item = await chatStore.createMessage(content, ctx.state.user)
+    ctx.status = 201
+    ctx.body = { item: presentChatItem(item, ctx.state.user) }
+  })
+
+  router.delete('/api/chat/messages/:id', requireSession, async (ctx) => {
+    const result = await chatStore.removeMessage(ctx.params.id, ctx.state.user)
+    if (result.reason === 'missing') {
+      ctx.status = 404
+      ctx.body = { error: '没有找到这条消息。' }
+      return
+    }
+    if (result.reason === 'forbidden') {
+      ctx.status = 403
+      ctx.body = { error: '只能删除自己发送的消息。' }
+      return
+    }
+    ctx.body = { ok: true }
+  })
+
+  router.post('/api/chat/comments', requireSession, async (ctx) => {
+    const input = validateChatCommentPayload(ctx.request.body)
+    const item = await chatStore.createComment(input, ctx.state.user)
+    ctx.status = 201
+    ctx.body = { item: presentChatItem(item, ctx.state.user) }
+  })
+
+  router.get('/api/chat/document', requireSession, (ctx) => {
+    ctx.body = { document: { ...ORACLE_DOCUMENT, html: oracleDocumentHtml } }
+  })
+
+  router.put('/api/chat/document', requireSession, (ctx) => {
+    ctx.status = 403
+    ctx.body = { error: '技术文档仅支持阅读与评论，不能在线编辑。' }
+  })
+
+  router.delete('/api/chat/comments/:id', requireSession, async (ctx) => {
+    const result = await chatStore.removeComment(ctx.params.id, ctx.state.user)
+    if (result.reason === 'missing') {
+      ctx.status = 404
+      ctx.body = { error: '没有找到这条评论。' }
+      return
+    }
+    if (result.reason === 'forbidden') {
+      ctx.status = 403
+      ctx.body = { error: '只能删除自己发表的评论。' }
+      return
+    }
     ctx.body = { ok: true }
   })
 

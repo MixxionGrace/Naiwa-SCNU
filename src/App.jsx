@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import AdminPage from './AdminPage.jsx'
+import ChatPage from './ChatPage.jsx'
 import {
   ApiError,
   checkGroupApplicationQq,
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
 
 const RESULT_PAGE = 'group-results'
 const ADMIN_PAGE = 'admin'
+const CHAT_PAGE = 'oracle-room'
 const GROUPS_PER_PAGE = 20
 const ACTIVITIES_PER_PAGE = 12
 const RELEASE_LOGS_PER_PAGE = 10
@@ -1831,7 +1833,8 @@ function getInitialRoute() {
   const isKnownPage =
     NAV_ITEMS.some((item) => item.id === page) ||
     page === RESULT_PAGE ||
-    page === ADMIN_PAGE
+    page === ADMIN_PAGE ||
+    page === CHAT_PAGE
 
   return {
     page: isKnownPage ? page : 'home',
@@ -1853,7 +1856,7 @@ export default function App() {
   const [pvCount, setPvCount] = useState(null)
   const pvTrackedRef = useRef(false)
   const [activeModal, setActiveModal] = useState(() =>
-    getInitialRoute().page === ADMIN_PAGE ? '' : 'announcement',
+    [ADMIN_PAGE, CHAT_PAGE].includes(getInitialRoute().page) ? '' : 'announcement',
   )
   const releaseLogReturnRef = useRef('')
 
@@ -1882,11 +1885,19 @@ export default function App() {
     document.title =
       route.page === ADMIN_PAGE
         ? '同好群与活动管理 · 华南奶蛙师范大学'
-        : '华南奶蛙师范大学'
+        : route.page === CHAT_PAGE
+          ? 'Oracle Room · AI 出牌逻辑协作室'
+          : '华南奶蛙师范大学'
+
+    if ([ADMIN_PAGE, CHAT_PAGE].includes(route.page)) {
+      setActiveModal('')
+      setSelectedActivity(null)
+      setPreviewActivityImage(null)
+    }
   }, [route.page])
 
   useEffect(() => {
-    if (route.page === ADMIN_PAGE || pvTrackedRef.current) return
+    if ([ADMIN_PAGE, CHAT_PAGE].includes(route.page) || pvTrackedRef.current) return
 
     pvTrackedRef.current = true
     trackPageView()
@@ -1934,7 +1945,7 @@ export default function App() {
     setRoute({ page, query })
     setSelectedActivity(null)
     setPreviewActivityImage(null)
-    if (page === ADMIN_PAGE) setActiveModal('')
+    if ([ADMIN_PAGE, CHAT_PAGE].includes(page)) setActiveModal('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -1956,6 +1967,10 @@ export default function App() {
   const isResultsPage = route.page === RESULT_PAGE
   const isAdminPage = route.page === ADMIN_PAGE
   const isWidePage = isResultsPage || isAdminPage || route.page === 'events'
+
+  if (route.page === CHAT_PAGE) {
+    return <ChatPage onExit={() => updateRoute('home')} />
+  }
 
   return (
     <div className="app-shell">

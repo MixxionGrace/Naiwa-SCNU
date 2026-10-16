@@ -2662,7 +2662,8 @@ footer p {
     left: 18px;
     z-index: 5;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
     padding: 5px;
     background: rgba(4, 20, 57, 0.87);
     box-shadow: 0 12px 40px rgba(0, 9, 32, 0.4);

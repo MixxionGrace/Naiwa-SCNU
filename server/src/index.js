@@ -38,10 +38,33 @@ function parseKeywords(value) {
   return uniqueKeywords
 }
 
+function validateGroupShareUrl(value) {
+  const shareUrl = String(value ?? '').trim()
+  if (!shareUrl) return ''
+
+  if (shareUrl.length > 500) {
+    return { error: '群分享链接不能超过 500 个字符。' }
+  }
+
+  try {
+    const parsedUrl = new URL(shareUrl)
+    const allowedHosts = new Set(['qm.qq.com', 'qun.qq.com'])
+    if (parsedUrl.protocol !== 'https:' || !allowedHosts.has(parsedUrl.hostname)) {
+      return { error: '请填写 qm.qq.com 或 qun.qq.com 的 HTTPS 群分享链接。' }
+    }
+  } catch {
+    return { error: '群分享链接格式不正确，请粘贴完整链接。' }
+  }
+
+  return shareUrl
+}
+
 function validateGroupPayload(body) {
   const name = String(body?.name ?? '').trim()
   const keywords = parseKeywords(body?.keywords)
   const qq = String(body?.qq ?? '').replace(/\s+/g, '')
+  const shareUrlResult = validateGroupShareUrl(body?.shareUrl)
+  const shareUrl = typeof shareUrlResult === 'string' ? shareUrlResult : ''
   const fields = {}
 
   if (!name || name.length > 80) fields.name = '群名需为 1–80 个字符。'
@@ -51,6 +74,7 @@ function validateGroupPayload(body) {
     fields.keywords = '每个关键词不能超过 40 个字符。'
   }
   if (!/^\d{5,12}$/.test(qq)) fields.qq = 'QQ 群号应为 5–12 位数字。'
+  if (typeof shareUrlResult !== 'string') fields.shareUrl = shareUrlResult.error
 
   if (Object.keys(fields).length) {
     const error = new Error('请检查填写内容。')
@@ -59,7 +83,7 @@ function validateGroupPayload(body) {
     throw error
   }
 
-  return { name, keywords, qq }
+  return { name, keywords, qq, shareUrl }
 }
 
 function validateApplicationPayload(body) {
@@ -727,6 +751,7 @@ export function createApp({
         name: application.name,
         keywords: application.keywords,
         qq: application.qq,
+        shareUrl: application.shareUrl || '',
       })
       if (created.duplicate) throw duplicateApplicationError('approved')
 

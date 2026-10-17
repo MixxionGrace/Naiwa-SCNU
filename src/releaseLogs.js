@@ -1,5 +1,12 @@
 export const RELEASE_LOGS = [
   {
+    date: '2026-10-17',
+    type: 'FEATURE',
+    title: 'QQ群一键跳转上线',
+    description:
+      '宣群申请支持填写 QQ 群分享链接；已配置链接的群可从搜索结果一键打开，并新增图文获取教程。',
+  },
+  {
     date: '2026-10-16',
     type: 'FEATURE',
     title: '意见反馈入口上线',

@@ -229,6 +229,7 @@ function GroupEditor({ token, group, onClose, onSaved, onUnauthorized }) {
   const [name, setName] = useState(group?.name || '')
   const [keywords, setKeywords] = useState(group?.keywords.join('，') || '')
   const [qq, setQq] = useState(group?.qq || '')
+  const [shareUrl, setShareUrl] = useState(group?.shareUrl || '')
   const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -239,7 +240,7 @@ function GroupEditor({ token, group, onClose, onSaved, onUnauthorized }) {
     setFieldErrors({})
     setSubmitting(true)
 
-    const payload = { name, keywords, qq }
+    const payload = { name, keywords, qq, shareUrl }
 
     try {
       if (isEditing) await updateAdminGroup(token, group.id, payload)
@@ -306,6 +307,20 @@ function GroupEditor({ token, group, onClose, onSaved, onUnauthorized }) {
           {fieldErrors.qq && <small>{fieldErrors.qq}</small>}
         </label>
 
+        <label>
+          <span>群分享链接（选填）</span>
+          <input
+            type="url"
+            value={shareUrl}
+            onChange={(event) => setShareUrl(event.target.value)}
+            inputMode="url"
+            placeholder="https://qm.qq.com/q/…"
+            maxLength="500"
+          />
+          <em>配置后，前台群卡片会显示可用的一键跳转入口。</em>
+          {fieldErrors.shareUrl && <small>{fieldErrors.shareUrl}</small>}
+        </label>
+
         {error && <p className="admin-form-error" role="alert">{error}</p>}
 
         <div className="admin-dialog__actions">
@@ -326,6 +341,7 @@ function ApplicationEditor({ token, application, onClose, onSaved, onUnauthorize
   const [keywords, setKeywords] = useState(application.keywords.join('，'))
   const [qq, setQq] = useState(application.qq)
   const [applicantQq, setApplicantQq] = useState(application.applicantQq)
+  const [shareUrl, setShareUrl] = useState(application.shareUrl || '')
   const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -342,6 +358,7 @@ function ApplicationEditor({ token, application, onClose, onSaved, onUnauthorize
         keywords,
         qq,
         applicantQq,
+        shareUrl,
       })
       onSaved('申请资料已更新。')
     } catch (requestError) {
@@ -411,6 +428,20 @@ function ApplicationEditor({ token, application, onClose, onSaved, onUnauthorize
             required
           />
           {fieldErrors.applicantQq && <small>{fieldErrors.applicantQq}</small>}
+        </label>
+
+        <label>
+          <span>群分享链接（选填）</span>
+          <input
+            type="url"
+            value={shareUrl}
+            onChange={(event) => setShareUrl(event.target.value)}
+            inputMode="url"
+            placeholder="https://qm.qq.com/q/…"
+            maxLength="500"
+          />
+          <em>可以补充、修改或清空申请人提交的链接。</em>
+          {fieldErrors.shareUrl && <small>{fieldErrors.shareUrl}</small>}
         </label>
 
         {error && <p className="admin-form-error" role="alert">{error}</p>}
@@ -1429,7 +1460,21 @@ function AdminDashboard({ token, onUnauthorized }) {
                   <tr key={group.id}>
                     <td data-label="群名"><strong>{group.name}</strong></td>
                     <td data-label="关键词"><div className="admin-keywords">{group.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div></td>
-                    <td data-label="QQ 群号"><code>{group.qq}</code></td>
+                    <td data-label="QQ 群号">
+                      <code>{group.qq}</code>
+                      {group.shareUrl ? (
+                        <a
+                          className="admin-group-share-link"
+                          href={group.shareUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          已配置一键跳转
+                        </a>
+                      ) : (
+                        <span className="admin-group-share-link is-empty">未配置跳转链接</span>
+                      )}
+                    </td>
                     <td data-label="操作">
                       <div className="admin-row-actions">
                         <button type="button" onClick={() => setEditorGroup(group)}>编辑</button>
@@ -1443,7 +1488,21 @@ function AdminDashboard({ token, onUnauthorized }) {
                   <tr key={application.id}>
                     <td data-label="群名"><strong>{application.name}</strong></td>
                     <td data-label="相关游戏"><div className="admin-keywords">{application.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div></td>
-                    <td data-label="QQ 群号"><code>{application.qq}</code></td>
+                    <td data-label="QQ 群号">
+                      <code>{application.qq}</code>
+                      {application.shareUrl ? (
+                        <a
+                          className="admin-group-share-link"
+                          href={application.shareUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          已提交分享链接
+                        </a>
+                      ) : (
+                        <span className="admin-group-share-link is-empty">未提交分享链接</span>
+                      )}
+                    </td>
                     <td data-label="申请人 QQ"><code className="admin-applicant-qq">{application.applicantQq}</code></td>
                     <td data-label="提交时间"><time dateTime={application.createdAt}>{formatSubmittedAt(application.createdAt)}</time></td>
                     <td data-label={isHistoryView ? '审核结果' : '操作'}>

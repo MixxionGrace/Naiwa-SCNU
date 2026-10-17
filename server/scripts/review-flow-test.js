@@ -106,11 +106,25 @@ async function run() {
     assert.equal(approvedDuplicate.status, 409)
     assert.equal(approvedDuplicate.body.code, 'ALREADY_APPROVED')
 
+    const invalidShareUrl = await request(origin, '/api/group-applications', {
+      method: 'POST',
+      body: {
+        name: '无效链接测试群',
+        keywords: ['测试游戏'],
+        qq: '123450986',
+        applicantQq: '778899001',
+        shareUrl: 'https://example.com/not-a-qq-group',
+      },
+    })
+    assert.equal(invalidShareUrl.status, 422)
+    assert.ok(invalidShareUrl.body.fields.shareUrl)
+
     const applicationPayload = {
       name: '接口审核测试群',
       keywords: ['测试游戏', '流程验证'],
       qq: '123450987',
       applicantQq: '778899001',
+      shareUrl: 'https://qm.qq.com/q/review-flow-test',
     }
     const submitted = await request(origin, '/api/group-applications', {
       method: 'POST',
@@ -156,10 +170,12 @@ async function run() {
           ...applicationPayload,
           name: '接口审核测试群（已编辑）',
           keywords: ['测试游戏', '编辑完成'],
+          shareUrl: 'https://qm.qq.com/q/review-flow-edited',
         },
       },
     )
     assert.equal(edited.status, 200)
+    assert.equal(edited.body.item.shareUrl, 'https://qm.qq.com/q/review-flow-edited')
 
     const approved = await request(
       origin,
@@ -168,6 +184,7 @@ async function run() {
     )
     assert.equal(approved.status, 200)
     assert.equal(approved.body.group.qq, applicationPayload.qq)
+    assert.equal(approved.body.group.shareUrl, 'https://qm.qq.com/q/review-flow-edited')
 
     const publicGroup = await request(
       origin,
@@ -176,6 +193,7 @@ async function run() {
     assert.equal(publicGroup.status, 200)
     assert.equal(publicGroup.body.total, 1)
     assert.equal(publicGroup.body.items[0].name, '接口审核测试群（已编辑）')
+    assert.equal(publicGroup.body.items[0].shareUrl, 'https://qm.qq.com/q/review-flow-edited')
 
     const approvedAfterReview = await request(
       origin,

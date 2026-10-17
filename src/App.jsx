@@ -16,6 +16,8 @@ import announcementPoster from './assets/scnu-sweet-girlfriend-poster.jpg'
 import sponsorWechat from './assets/sponsor-wechat.jpg'
 import sponsorAlipay from './assets/sponsor-alipay.jpg'
 import naiwaLaughAudio from './assets/naiwa-laugh.m4a'
+import groupShareStepOne from './assets/group-share-step-1-redacted.png'
+import groupShareStepTwo from './assets/group-share-step-2-redacted.png'
 import { RELEASE_LOGS } from './releaseLogs.js'
 
 const NAV_ITEMS = [
@@ -68,6 +70,15 @@ function CopyIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <rect x="8" y="8" width="11" height="11" rx="2" />
       <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+    </svg>
+  )
+}
+
+function QuestionFilledIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.7 9.2a2.5 2.5 0 1 1 3.4 2.34c-.73.31-1.1.76-1.1 1.46v.35M12 17.35h.01" />
     </svg>
   )
 }
@@ -213,6 +224,10 @@ function AnnouncementModal({ onClose }) {
 }
 
 function NewFeaturesModal({ onClose, onOpenReleaseLog }) {
+  const latestFeatureLogs = RELEASE_LOGS
+    .filter((entry) => entry.type === 'FEATURE')
+    .slice(0, 3)
+
   return (
     <ModalShell
       labelledBy="new-features-modal-title"
@@ -224,32 +239,23 @@ function NewFeaturesModal({ onClose, onOpenReleaseLog }) {
         <span>WHAT&apos;S NEW</span>
         <h2 id="new-features-modal-title">新功能上线</h2>
         <p id="new-features-modal-copy">
-          最近两项重要功能都整理在这里，找群和约活动现在都有着落啦。
+          最近 3 条功能更新都整理在这里，打开就能看见小站的最新变化。
         </p>
       </div>
 
       <div className="new-feature-list">
-        <article className="new-feature-card">
-          <span>NEW</span>
-          <div>
-            <h3>华师同好活动广场上线</h3>
-            <p>
-              可以浏览线上、线下同好活动，也支持个人名义申请活动（大小活动都可以）。
-              通过站长审核后，活动才会在广场公开展示；申请人 QQ 号不会公开。
-            </p>
-          </div>
-        </article>
-
-        <article className="new-feature-card new-feature-card--previous">
-          <span>01</span>
-          <div>
-            <h3>同好群自助申请上线</h3>
-            <p>
-              点击“想要宣群？”，填写群名、相关游戏、QQ 群号和申请人 QQ 号即可提交。
-              系统会自动检查重复群号，申请通过审核后才会展示在同好群列表中。
-            </p>
-          </div>
-        </article>
+        {latestFeatureLogs.map((feature, index) => (
+          <article
+            className={`new-feature-card${index === 0 ? '' : ' new-feature-card--previous'}`}
+            key={`${feature.date}-${feature.title}`}
+          >
+            <span>{index === 0 ? 'NEW' : String(index + 1).padStart(2, '0')}</span>
+            <div>
+              <h3>{feature.title}</h3>
+              <p>{feature.description}</p>
+            </div>
+          </article>
+        ))}
       </div>
 
       <div className="modal-actions new-features-modal__actions">
@@ -536,7 +542,81 @@ function FeedbackModal({ onClose }) {
   )
 }
 
-function validatePromoteFields({ name, keywords, qq, applicantQq }) {
+function isSupportedGroupShareUrl(value) {
+  const shareUrl = String(value ?? '').trim()
+  if (!shareUrl) return false
+
+  try {
+    const parsedUrl = new URL(shareUrl)
+    return (
+      parsedUrl.protocol === 'https:' &&
+      ['qm.qq.com', 'qun.qq.com'].includes(parsedUrl.hostname)
+    )
+  } catch {
+    return false
+  }
+}
+
+function ShareLinkHelpModal({ onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Escape') return
+      event.stopImmediatePropagation()
+      onClose()
+    }
+
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [onClose])
+
+  return (
+    <ModalShell
+      labelledBy="share-link-help-title"
+      describedBy="share-link-help-copy"
+      className="share-link-help-modal"
+      onClose={onClose}
+    >
+      <div className="modal-heading">
+        <span>QQ GROUP SHARE LINK</span>
+        <h2 id="share-link-help-title">怎么获取群分享链接？</h2>
+        <p id="share-link-help-copy">跟着下面三步操作，复制后直接粘贴到申请表即可。</p>
+      </div>
+
+      <div className="share-link-guide">
+        <article className="share-link-guide__step">
+          <div className="share-link-guide__copy">
+            <span>01</span>
+            <p>进入目标 QQ 群的“聊天信息”页面，点击右上角“…”按钮。</p>
+          </div>
+          <img
+            src={groupShareStepOne}
+            alt="QQ 群聊天信息页面，右上角省略号按钮已用红框和箭头标出"
+          />
+        </article>
+
+        <article className="share-link-guide__step">
+          <div className="share-link-guide__copy">
+            <span>02</span>
+            <p>打开分享面板后，选择“复制链接”。</p>
+          </div>
+          <img
+            src={groupShareStepTwo}
+            alt="QQ 分享面板，复制链接按钮已用红框和箭头标出"
+          />
+        </article>
+
+        <article className="share-link-guide__step share-link-guide__step--paste">
+          <div className="share-link-guide__copy">
+            <span>03</span>
+            <p>回到宣群申请表，把复制好的链接粘贴到“群分享链接”输入框，就完成啦。</p>
+          </div>
+        </article>
+      </div>
+    </ModalShell>
+  )
+}
+
+function validatePromoteFields({ name, keywords, qq, applicantQq, shareUrl }) {
   const errors = {}
   const keywordItems = keywords.split(/[,，、\n]+/).map((item) => item.trim()).filter(Boolean)
 
@@ -554,6 +634,11 @@ function validatePromoteFields({ name, keywords, qq, applicantQq }) {
   if (!/^\d{5,12}$/.test(applicantQq.replace(/\s+/g, ''))) {
     errors.applicantQq = '申请人 QQ 号应为 5–12 位数字。'
   }
+  if (shareUrl.trim().length > 500) {
+    errors.shareUrl = '群分享链接不能超过 500 个字符。'
+  } else if (shareUrl.trim() && !isSupportedGroupShareUrl(shareUrl)) {
+    errors.shareUrl = '请填写 qm.qq.com 或 qun.qq.com 的 HTTPS 群分享链接。'
+  }
 
   return errors
 }
@@ -564,12 +649,14 @@ function PromoteGroupModal({ onClose }) {
     keywords: '',
     qq: '',
     applicantQq: '',
+    shareUrl: '',
   })
   const [fieldErrors, setFieldErrors] = useState({})
   const [availability, setAvailability] = useState(null)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState(null)
+  const [showShareLinkHelp, setShowShareLinkHelp] = useState(false)
 
   const updateField = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }))
@@ -663,12 +750,13 @@ function PromoteGroupModal({ onClose }) {
   }
 
   return (
-    <ModalShell
-      labelledBy="promote-modal-title"
-      describedBy="promote-modal-copy"
-      className="promote-modal"
-      onClose={onClose}
-    >
+    <>
+      <ModalShell
+        labelledBy="promote-modal-title"
+        describedBy="promote-modal-copy"
+        className="promote-modal"
+        onClose={onClose}
+      >
       <div className="modal-heading">
         <span>SUBMIT YOUR GROUP</span>
         <h2 id="promote-modal-title">想要宣群？</h2>
@@ -724,6 +812,48 @@ function PromoteGroupModal({ onClose }) {
             {fieldErrors.keywords && <small>{fieldErrors.keywords}</small>}
           </label>
 
+          <div className="promote-form__wide promote-form__field share-link-field">
+            <div className="share-link-field__heading">
+              <label htmlFor="group-share-url">群分享链接（选填）</label>
+              <span className="share-link-help">
+                <button
+                  className="share-link-help__icon"
+                  type="button"
+                  aria-label="查看群分享链接获取方法"
+                  aria-haspopup="dialog"
+                  aria-expanded={showShareLinkHelp}
+                  onClick={() => setShowShareLinkHelp(true)}
+                >
+                  <QuestionFilledIcon />
+                </button>
+                <span className="share-link-help__tooltip" role="tooltip">
+                  怎么获取群分享链接？
+                  <a
+                    href="#group-share-link-help"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setShowShareLinkHelp(true)
+                    }}
+                  >
+                    点击这里
+                  </a>
+                </span>
+              </span>
+            </div>
+            <input
+              id="group-share-url"
+              type="url"
+              value={form.shareUrl}
+              onChange={(event) => updateField('shareUrl', event.target.value)}
+              inputMode="url"
+              autoComplete="url"
+              placeholder="例如：https://qm.qq.com/q/…"
+              maxLength="500"
+            />
+            <em>填写后，访客可从群卡片一键打开群聊；也可以留空。</em>
+            {fieldErrors.shareUrl && <small>{fieldErrors.shareUrl}</small>}
+          </div>
+
           <label className="promote-form__wide">
             <span>申请人 QQ 号</span>
             <input
@@ -758,7 +888,12 @@ function PromoteGroupModal({ onClose }) {
       <p className="promote-notice">
         注意：只有华师相关的同好群或社团群可在网站里宣传。
       </p>
-    </ModalShell>
+      </ModalShell>
+
+      {showShareLinkHelp && (
+        <ShareLinkHelpModal onClose={() => setShowShareLinkHelp(false)} />
+      )}
+    </>
   )
 }
 
@@ -1715,7 +1850,11 @@ function EventsPage({ onSubmitActivity, onOpenActivity }) {
   )
 }
 
-function GroupCard({ group, onCopy, copied }) {
+function GroupCard({ group, onCopy, copied, onUnavailableJump }) {
+  const shareUrl = isSupportedGroupShareUrl(group.shareUrl)
+    ? group.shareUrl.trim()
+    : ''
+
   return (
     <article className="group-card">
       <div className="group-card__topline">
@@ -1737,14 +1876,37 @@ function GroupCard({ group, onCopy, copied }) {
           <span>QQ 群号</span>
           <strong>{group.qq.replace(/(\d{3})(?=\d)/g, '$1 ')}</strong>
         </div>
-        <button
-          type="button"
-          onClick={() => onCopy(group.qq, group.id)}
-          aria-label={`复制 QQ 群号 ${group.qq}`}
-        >
-          <CopyIcon />
-          {copied ? '已复制' : '复制群号'}
-        </button>
+        <div className="group-card__actions">
+          <button
+            type="button"
+            onClick={() => onCopy(group.qq, group.id)}
+            aria-label={`复制 QQ 群号 ${group.qq}`}
+          >
+            <CopyIcon />
+            {copied ? '已复制' : '复制群号'}
+          </button>
+          {shareUrl ? (
+            <a
+              className="group-card__jump"
+              href={shareUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`一键打开${group.name}的 QQ 群分享链接`}
+            >
+              <ArrowIcon />
+              一键跳转
+            </a>
+          ) : (
+            <button
+              className="group-card__jump group-card__jump--unavailable"
+              type="button"
+              onClick={onUnavailableJump}
+            >
+              <ArrowIcon />
+              一键跳转
+            </button>
+          )}
+        </div>
       </div>
     </article>
   )
@@ -1756,6 +1918,7 @@ function GroupResultsPage({ query, onSearch, onBack, onCopy, copiedGroupId }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
+  const [jumpNotice, setJumpNotice] = useState(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -1774,6 +1937,12 @@ function GroupResultsPage({ query, onSearch, onBack, onCopy, copiedGroupId }) {
 
     return () => controller.abort()
   }, [query, refreshKey])
+
+  useEffect(() => {
+    if (!jumpNotice) return undefined
+    const timer = window.setTimeout(() => setJumpNotice(null), 3600)
+    return () => window.clearTimeout(timer)
+  }, [jumpNotice])
 
   return (
     <section className="page page--results" aria-labelledby="results-title">
@@ -1813,6 +1982,10 @@ function GroupResultsPage({ query, onSearch, onBack, onCopy, copiedGroupId }) {
               group={group}
               onCopy={onCopy}
               copied={copiedGroupId === group.id}
+              onUnavailableJump={() => setJumpNotice({
+                id: Date.now(),
+                message: '该群聊暂不支持一键跳转，请通过群号搜索加入。',
+              })}
             />
           ))}
         </div>
@@ -1821,6 +1994,12 @@ function GroupResultsPage({ query, onSearch, onBack, onCopy, copiedGroupId }) {
           <strong>暂时没找到</strong>
           <p>换一个更短的关键词试试，例如“音游”“舞萌”或“maimai”。</p>
           <button type="button" onClick={onBack}>重新搜索</button>
+        </div>
+      )}
+
+      {jumpNotice && (
+        <div className="group-jump-notice" role="status" key={jumpNotice.id}>
+          {jumpNotice.message}
         </div>
       )}
     </section>

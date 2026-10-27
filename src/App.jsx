@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import AdminPage from './AdminPage.jsx'
 import ChatPage from './ChatPage.jsx'
+import ReaGamePage from './ReaGamePage.jsx'
 import {
   ApiError,
   checkGroupApplicationQq,
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { id: 'about', label: '关于我们' },
   { id: 'find', label: '查找华师同好群' },
   { id: 'events', label: '同好活动广场' },
+  { id: 'run', label: '跑酷试玩' },
 ]
 
 const RESULT_PAGE = 'group-results'
@@ -2145,7 +2147,8 @@ export default function App() {
   const activeNavPage = route.page === RESULT_PAGE ? 'find' : route.page
   const isResultsPage = route.page === RESULT_PAGE
   const isAdminPage = route.page === ADMIN_PAGE
-  const isWidePage = isResultsPage || isAdminPage || route.page === 'events'
+  const isGamePage = route.page === 'run'
+  const isWidePage = isResultsPage || isAdminPage || route.page === 'events' || isGamePage
 
   if (route.page === CHAT_PAGE) {
     return <ChatPage onExit={() => updateRoute('home')} />
@@ -2230,7 +2233,7 @@ export default function App() {
       </header>
 
       <main
-        className={`site-main${isResultsPage ? ' site-main--results' : ''}${isAdminPage ? ' site-main--admin' : ''}`}
+        className={`site-main${isResultsPage ? ' site-main--results' : ''}${isAdminPage ? ' site-main--admin' : ''}${isGamePage ? ' site-main--game' : ''}`}
       >
         <div
           className={`content-panel${isWidePage ? ' content-panel--wide' : ''}${isAdminPage ? ' content-panel--admin' : ''}`}
@@ -2259,6 +2262,7 @@ export default function App() {
               onOpenActivity={setSelectedActivity}
             />
           )}
+          {route.page === 'run' && <ReaGamePage />}
           {route.page === ADMIN_PAGE && <AdminPage />}
         </div>
 

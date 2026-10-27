@@ -282,6 +282,12 @@ nav button.is-active {
   padding-top: 32px;
 }
 
+.site-main--game {
+  align-items: flex-start;
+  width: min(100% - 48px, 1500px);
+  padding-top: 24px;
+}
+
 .content-panel--admin {
   width: 100%;
 }
@@ -299,6 +305,131 @@ nav button.is-active {
 
 .page {
   padding: 28px 0;
+}
+
+.page--rea-game {
+  width: 100%;
+  padding-top: 0;
+}
+
+.rea-game-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 18px;
+}
+
+.rea-game-heading .section-kicker {
+  margin-bottom: 8px;
+  color: #ffe86a;
+}
+
+.rea-game-heading h1 {
+  font-size: clamp(32px, 4vw, 58px);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.rea-game-heading p:not(.section-kicker) {
+  max-width: 720px;
+  margin: 10px 0 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.rea-game-heading__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.rea-game-heading__actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 232, 106, 0.54);
+  border-radius: 999px;
+  background: #ffe86a;
+  color: #0a317c;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.rea-game-heading__actions a:hover {
+  transform: translateY(-2px);
+  background: #fff09a;
+}
+
+.rea-game-heading__actions .rea-game-source {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(4, 24, 69, 0.7);
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.rea-game-heading__actions .rea-game-source:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(10, 45, 112, 0.9);
+}
+
+.rea-game-heading__actions svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.rea-game-heading__actions .rea-game-source svg {
+  fill: currentColor;
+  stroke: none;
+}
+
+.rea-game-stage {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: clamp(520px, 68svh, 860px);
+  border: 1px solid rgba(255, 232, 106, 0.52);
+  border-radius: 28px;
+  background: #071514;
+  box-shadow: 0 28px 80px rgba(1, 10, 35, 0.42);
+}
+
+.rea-game-stage::before {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.62);
+  content: '正在加载跑酷场景…';
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.rea-game-stage iframe {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #071514;
+}
+
+.rea-game-note {
+  margin: 12px 4px 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  line-height: 1.7;
 }
 
 .hero__eyebrow,
@@ -3063,6 +3194,23 @@ footer p {
     padding: 48px 0 108px;
   }
 
+  .site-main--game {
+    width: min(100% - 24px, 720px);
+    padding-top: 32px;
+  }
+
+  .rea-game-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .rea-game-stage {
+    height: min(70svh, 720px);
+    min-height: 500px;
+    border-radius: 22px;
+  }
+
   .content-panel {
     width: min(650px, 100%);
   }
@@ -3135,6 +3283,36 @@ footer p {
   .site-main {
     align-items: start;
     padding-top: 68px;
+  }
+
+  .site-main--game {
+    padding-top: 38px;
+  }
+
+  .rea-game-heading h1 {
+    font-size: 42px;
+  }
+
+  .rea-game-heading p:not(.section-kicker) {
+    font-size: 12px;
+  }
+
+  .rea-game-heading__actions {
+    width: 100%;
+  }
+
+  .rea-game-heading__actions a {
+    flex: 1;
+  }
+
+  .rea-game-stage {
+    height: 66svh;
+    min-height: 480px;
+    border-radius: 18px;
+  }
+
+  .rea-game-note {
+    margin-bottom: 12px;
   }
 
   .page {

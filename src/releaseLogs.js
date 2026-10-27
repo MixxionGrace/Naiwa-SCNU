@@ -1,5 +1,12 @@
 export const RELEASE_LOGS = [
   {
+    date: '2026-10-27',
+    type: 'FEATURE',
+    title: '跑酷试玩入口上线',
+    description:
+      '主导航新增跑酷试玩页，支持键盘与手机滑动操作；游戏资源独立加载，不影响首页打开速度。',
+  },
+  {
     date: '2026-10-17',
     type: 'FEATURE',
     title: 'QQ群一键跳转上线',
